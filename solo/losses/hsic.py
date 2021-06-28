@@ -57,7 +57,9 @@ def imq_rff_features(hidden, num_rff_features, kernel_param):
     pi = torch.tensor(math.pi, device=device)
 
     amp, amp_probs = amplitude_frequency_and_probs(d, device)
-    amplitudes = jax.random.choice(amp, size=[num_rff_features, 1], p=amp_probs)
+    amplitudes = torch.from_numpy(
+        np.random.choice(amp, size=[num_rff_features, 1], p=amp_probs)
+    ).to(device)
     directions = torch.normal((num_rff_features, d)).to(device)
     b = torch.rand(size=(1, num_rff_features), device=device) * 2 * pi
     w = directions / torch.linalg.norm(directions, axis=-1, keepdims=True) * amplitudes
@@ -65,7 +67,7 @@ def imq_rff_features(hidden, num_rff_features, kernel_param):
     return z
 
 
-def amplitude_frequency_and_probs(d, device):
+def amplitude_frequency_and_probs(d):
     if d >= 4096:
         upper = 200
     elif d >= 2048:
@@ -74,15 +76,14 @@ def amplitude_frequency_and_probs(d, device):
         upper = 120
     else:
         upper = 100
-    x = torch.linspace(1e-12, upper, 10000)
-    p = compute_prob(d, x, device)
+    x = np.linspace(1e-12, upper, 10000)
+    p = compute_prob(d, x)
     return x, p
 
 
-def compute_prob(d, x_range, device):
-    prob = torch.tensor(
+def compute_prob(d, x_range):
+    prob = np.array(
         [mpmath.besselk((d - 1) / 2, x) * mpmath.power(x, (d - 1) / 2) for x in x_range],
-        device=device,
     )
     normalized_prob = prob / prob.sum()
     return normalized_prob
