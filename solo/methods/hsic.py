@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.nn.modules.batchnorm import BatchNorm1d
 from solo.losses.hsic import hsic_loss_func
 from solo.methods.base import BaseMomentumModel
 from solo.utils.momentum import initialize_momentum_params
@@ -36,6 +37,8 @@ class HSIC(BaseMomentumModel):
             nn.ReLU(),
             nn.Linear(pred_hidden_dim, output_dim),
         )
+
+        self.bn_helper = BatchNorm1d(output_dim, affine=False, track_running_stats=False)
 
     @staticmethod
     def add_model_specific_args(parent_parser):
@@ -86,14 +89,19 @@ class HSIC(BaseMomentumModel):
             z1_momentum = self.momentum_projector(feats1_momentum)
             z2_momentum = self.momentum_projector(feats2_momentum)
 
+        p1 = F.normalize(self.bn_helper(p1), dim=-1)
+        p2 = F.normalize(self.bn_helper(p2), dim=-1)
+        z1_momentum = F.normalize(self.bn_helper(z1_momentum), dim=-1)
+        z2_momentum = F.normalize(self.bn_helper(z2_momentum), dim=-1)
+
         p = torch.cat((p1, p2))
         z_momentum = torch.cat((z1_momentum, z2_momentum))
 
         # define kernel matrices
         K = torch.mm(p, z_momentum.T)
-        L = torch.eye(K.size(0), dtype=float, device=self.device)
+        L = torch.eye(K.size(0), device=self.device, dtype=torch.float32)
         L[:, K.size(0) // 2 :].fill_diagonal_(1.0)
-        L[K.size(0) // 2, :].fill_diagonal_(1.0)
+        L[K.size(0) // 2 :, :].fill_diagonal_(1.0)
 
         # ------- contrastive loss -------
         hsic_loss = hsic_loss_func(K, L)
