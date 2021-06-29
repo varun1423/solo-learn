@@ -8,6 +8,7 @@ from solo.methods.simclr import SimCLR
 from solo.methods.simsiam import SimSiam
 from solo.methods.swav import SwAV
 from solo.methods.vicreg import VICReg
+from solo.methods.hsic import HSIC
 
 METHODS = {
     # base classes
@@ -16,6 +17,7 @@ METHODS = {
     # methods
     "barlow_twins": BarlowTwins,
     "byol": BYOL,
+    "hsic": HSIC,
     "mocov2plus": MoCoV2Plus,
     "nnclr": NNCLR,
     "simclr": SimCLR,
@@ -32,6 +34,7 @@ except ImportError:
         "BarlowTwins",
         "BYOL",
         "BaseModel",
+        "HSIC",
         "LinearModel",
         "MoCoV2Plus",
         "NNCLR",
@@ -45,6 +48,7 @@ else:
         "BarlowTwins",
         "BYOL",
         "BaseModel",
+        "HSIC",
         "LinearModel",
         "MoCoV2Plus",
         "NNCLR",

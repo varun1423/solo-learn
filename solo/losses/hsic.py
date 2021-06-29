@@ -5,19 +5,20 @@ import numpy as np
 import torch
 
 
-def hsic_loss(hiddens, kernel_param, num_rff_features, gamma):
-    hsic_yz = compute_hsic_yz(hiddens, num_rff_features, kernel_param)
-    hsic_zz = compute_hsic_zz(hiddens, num_rff_features, kernel_param)
+def hsic_loss_func(hiddens, kernel_param, num_rff_features=512, gamma=3):
+    hsic_yz = compute_hsic_yz(hiddens, kernel_param, num_rff_features)
+    hsic_zz = compute_hsic_zz(hiddens, kernel_param, num_rff_features)
     return -hsic_yz + gamma * torch.sqrt(hsic_zz)
 
 
-def compute_hsic_yz(hiddens, num_rff_features, kernel_param):
+def compute_hsic_yz(hiddens, kernel_param, num_rff_features):
     device = hiddens[0].device
     b = hiddens[0].size(0)
     M = len(hiddens)
 
     rff_hiddens = torch.zeros((b, num_rff_features), device=device)
     mean = torch.zeros((1, num_rff_features))
+
     for hidden in hiddens:
         rff_features = imq_rff_features(hidden, num_rff_features, kernel_param)
         rff_hiddens += rff_features
@@ -26,7 +27,7 @@ def compute_hsic_yz(hiddens, num_rff_features, kernel_param):
     return (rff_hiddens ** 2).sum() / (b * M * (M - 1)) - (mean ** 2).sum() / (b * M) ** 2
 
 
-def compute_hsic_zz(hiddens, num_rff_features, kernel_param):
+def compute_hsic_zz(hiddens, kernel_param, num_rff_features):
     device = hiddens[0].device
     b = hiddens[0].size(0)
     M = len(hiddens)
@@ -35,15 +36,18 @@ def compute_hsic_zz(hiddens, num_rff_features, kernel_param):
     z2_rffs = []
     center_z1 = torch.zeros((1, num_rff_features), device=device)
     center_z2 = torch.zeros((1, num_rff_features), device=device)
+
     for hidden in hiddens:
         z1_rff = imq_rff_features(hidden, num_rff_features, kernel_param)
-        z2_rff = imq_rff_features(hidden, num_rff_features, kernel_param)
         z1_rffs.append(z1_rff)
         center_z1 += z1_rff.mean(0, keepdims=True)
+
+        z2_rff = imq_rff_features(hidden, num_rff_features, kernel_param)
         z2_rffs.append(z2_rff)
         center_z2 += z2_rff.mean(0, keepdims=True)
     center_z1 /= M
     center_z2 /= M
+
     z = torch.zeros((num_rff_features, num_rff_features), device=device)
     for z1_rff, z2_rff in zip(z1_rffs, z2_rffs):
         z += torch.einsum("ni,nj->ij", z1_rff - center_z1, z2_rff - center_z2)
