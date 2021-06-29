@@ -1,6 +1,7 @@
 from solo.methods.barlow_twins import BarlowTwins
 from solo.methods.base import BaseModel
 from solo.methods.byol import BYOL
+from solo.methods.dino import DINO
 from solo.methods.linear import LinearModel
 from solo.methods.mocov2plus import MoCoV2Plus
 from solo.methods.nnclr import NNCLR
@@ -17,6 +18,7 @@ METHODS = {
     # methods
     "barlow_twins": BarlowTwins,
     "byol": BYOL,
+    "dino": DINO,
     "hsic": HSIC,
     "mocov2plus": MoCoV2Plus,
     "nnclr": NNCLR,
@@ -34,6 +36,7 @@ except ImportError:
         "BarlowTwins",
         "BYOL",
         "BaseModel",
+        "DINO",
         "HSIC",
         "LinearModel",
         "MoCoV2Plus",
@@ -48,6 +51,7 @@ else:
         "BarlowTwins",
         "BYOL",
         "BaseModel",
+        "DINO",
         "HSIC",
         "LinearModel",
         "MoCoV2Plus",
