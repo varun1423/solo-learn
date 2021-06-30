@@ -89,6 +89,10 @@ class HSIC(BaseMomentumModel):
             z1_momentum = self.momentum_projector(feats1_momentum)
             z2_momentum = self.momentum_projector(feats2_momentum)
 
+        indexes = batch[0]
+        labels = F.one_hot(torch.arange(p1.size(0), device=self.device)).to(torch.float32)
+        kernel_params = torch.linalg.norm(labels.unsqueeze(1) - labels, dim=-1)
+
         p1 = F.normalize(self.bn_helper(p1), dim=-1)
         p2 = F.normalize(self.bn_helper(p2), dim=-1)
         z1_momentum = F.normalize(self.bn_helper(z1_momentum), dim=-1)
@@ -98,13 +102,13 @@ class HSIC(BaseMomentumModel):
         z_momentum = torch.cat((z1_momentum, z2_momentum))
 
         # define kernel matrices
-        K = torch.mm(p, z_momentum.T)
-        L = torch.eye(K.size(0), device=self.device, dtype=torch.float32)
-        L[:, K.size(0) // 2 :].fill_diagonal_(1.0)
-        L[K.size(0) // 2 :, :].fill_diagonal_(1.0)
-
+        hiddens = [p1, z2_momentum]
+        # K = torch.mm(p, z_momentum.T)
+        # L = torch.eye(p1.size(0) * 2, device=self.device, dtype=torch.float32)
+        # L[:, p1.size(0) :].fill_diagonal_(1.0)
+        # L[p1.size(0) :, :].fill_diagonal_(1.0)
         # ------- contrastive loss -------
-        hsic_loss = hsic_loss_func(K, L)
+        hsic_loss = hsic_loss_func(hiddens, kernel_params)
 
         # calculate std of features
         z_std = (F.normalize(z1).std(dim=0).mean() + F.normalize(z2).std(dim=0).mean()) / 2

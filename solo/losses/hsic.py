@@ -21,9 +21,10 @@ def compute_hsic_yz(hiddens, kernel_param, num_rff_features):
 
     rff_hiddens = torch.zeros((b, num_rff_features), device=device)
     mean = torch.zeros((1, num_rff_features), device=device)
-
+    print()
     for hidden in tqdm.tqdm(hiddens):
         rff_features = imq_rff_features(hidden, num_rff_features, kernel_param)
+        exit()
         print(rff_features)
         exit()
         rff_hiddens += rff_features
@@ -71,8 +72,12 @@ def imq_rff_features(hidden, num_rff_features, kernel_param):
     ).to(dtype=torch.float32, device=device)
     directions = torch.normal(0, 1, size=(num_rff_features, d)).to(device)
     b = torch.rand(size=(1, num_rff_features), device=device) * 2 * pi
-    w = directions / torch.linalg.norm(directions, axis=-1, keepdims=True) * amplitudes
+    w = directions / torch.linalg.norm(directions, dim=-1, keepdims=True) * amplitudes
     scale = math.sqrt(torch.tensor(2.0 / num_rff_features, device=device))
+    print(hidden.size())
+    torch.set_printoptions(profile="full")
+    print(kernel_param)
+    exit()
     print(hidden / kernel_param)
     exit()
     z = scale * torch.cos(torch.matmul(hidden / kernel_param, w.T) + b)
