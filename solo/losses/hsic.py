@@ -74,6 +74,8 @@ def imq_rff_features(hidden, num_rff_features, kernel_param):
     b = torch.rand(size=(1, num_rff_features), device=device) * 2 * pi
     w = directions / torch.linalg.norm(directions, dim=-1, keepdims=True) * amplitudes
     scale = math.sqrt(torch.tensor(2.0 / num_rff_features, device=device))
+    print(w.T.size())
+    exit()
     print(hidden.size())
     torch.set_printoptions(profile="full")
     print(kernel_param)
