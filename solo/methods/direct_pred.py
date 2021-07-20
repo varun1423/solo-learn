@@ -176,7 +176,7 @@ class DirectPred(BaseMomentumModel):
         Returns:
             [type]: [description]
         """
-
+        M = M.to(torch.float32)
         D, Q = torch.eig(M, eigenvectors=True)
 
         # if eigen_values >= 1, scale everything down.
@@ -188,7 +188,9 @@ class DirectPred(BaseMomentumModel):
         eigen_values = eigen_values.pow(1 / self.dyn_convert) + self.dyn_eps
         eigen_values = eigen_values.clamp(1e-4)
 
-        return Q @ eigen_values.diag() @ Q.t()
+        w = Q @ eigen_values.diag() @ Q.t()
+        w = w.to(torch.half)
+        return w
 
     def update_predictor(self, batch_idx):
         if batch_idx == 0 or self.predictor_update_freq % batch_idx == 0:
