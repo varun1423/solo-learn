@@ -96,7 +96,7 @@ class DirectPred(BaseMomentumModel):
         initialize_momentum_params(self.projector, self.momentum_projector)
 
         # predictor
-        self.predictor = nn.Linear(output_dim, output_dim)
+        self.predictor = nn.Linear(output_dim, output_dim, bias=False)
         for param in self.predictor.parameters():
             param.requires_grad = False
 
@@ -193,7 +193,7 @@ class DirectPred(BaseMomentumModel):
         return w
 
     def update_predictor(self, batch_idx):
-        if batch_idx == 0 or self.predictor_update_freq % batch_idx == 0:
+        if batch_idx == 0 or batch_idx % self.predictor_update_freq == 0:
             M = self.cum_corr.get()
             if M is not None:
                 w = self.compute_w_corr(M)

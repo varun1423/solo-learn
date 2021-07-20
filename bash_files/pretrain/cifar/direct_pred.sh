@@ -6,14 +6,10 @@ python3 ../../../main_pretrain.py \
     --gpus 0 \
     --precision 16 \
     --optimizer sgd \
-    --lars \
-    --grad_clip_lars \
-    --eta_lars 0.02 \
-    --exclude_bias_n_norm \
     --scheduler warmup_cosine \
-    --lr 1.0 \
+    --lr 0.03 \
     --classifier_lr 0.1 \
-    --weight_decay 1e-5 \
+    --weight_decay 0.0004 \
     --batch_size 256 \
     --num_workers 5 \
     --brightness 0.4 \

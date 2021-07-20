@@ -3,7 +3,7 @@ python3 ../../../main_pretrain.py \
     --encoder resnet18 \
     --data_dir ./datasets \
     --max_epochs 1000 \
-    --gpus 0 \
+    --gpus 1 \
     --num_workers 4 \
     --precision 16 \
     --optimizer sgd \
@@ -21,8 +21,7 @@ python3 ../../../main_pretrain.py \
     --hue 0.1 \
     --asymmetric_augmentations \
     --name barlow-$1 \
-    --project solo-learn \
-    --entity unitn-mhug \
+    --project debug \
     --wandb \
     --method barlow_twins \
     --proj_hidden_dim 2048 \
