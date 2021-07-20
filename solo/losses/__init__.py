@@ -8,11 +8,13 @@ from solo.losses.simsiam import simsiam_loss_func
 from solo.losses.swav import swav_loss_func
 from solo.losses.vicreg import vicreg_loss_func
 from solo.losses.wmse import wmse_loss_func
+from solo.losses.direct_pred import direct_pred_loss_func
 
 __all__ = [
     "barlow_loss_func",
     "byol_loss_func",
     "DINOLoss",
+    "direct_pred_loss_func",
     "moco_loss_func",
     "nnclr_loss_func",
     "simclr_loss_func",
