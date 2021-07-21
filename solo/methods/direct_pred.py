@@ -10,25 +10,33 @@ from solo.utils.momentum import initialize_momentum_params
 
 
 class Accumulator:
-    def __init__(self, dyn_lambda=None):
+    def __init__(self, dp_rho=None):
         """
-        Copied From
+        Added typing to Accumulator from
         https://github.com/facebookresearch/luckmatters/blob/master/ssl/real-dataset/byol_trainer.py
         """
 
-        self.dyn_lambda = dyn_lambda
+        self.dp_rho = dp_rho
         self.cumulated = None
         self.counter = 0
 
         self.reset()
 
     def reset(self):
-        if self.dyn_lambda is None:
+        """Resets statistics from accumulator."""
+
+        if self.dp_rho is None:
             # Averaging..
             self.cumulated = None
             self.counter = 0
 
-    def add_list(self, d_list):
+    def add_list(self, d_list: list):
+        """Adds a list of batches of features to the current accumulator.
+
+        Args:
+            d_list (list): list of batches of features.
+        """
+
         assert isinstance(d_list, list)
 
         all_d = torch.cat(d_list, dim=0)
@@ -39,19 +47,31 @@ class Accumulator:
 
         self.add(d)
 
-    def add(self, d):
+    def add(self, d: torch.Tensor):
+        """Adds a batch of features to the current estimation.
+
+        Args:
+            d (torch.Tensor): batch of features.
+        """
+
         if self.cumulated is None:
             self.cumulated = d
         else:
-            if self.dyn_lambda is None:
+            if self.dp_rho is None:
                 self.cumulated += d
             else:
-                self.cumulated = self.dyn_lambda * self.cumulated + (1 - self.dyn_lambda) * d
+                self.cumulated = self.dp_rho * self.cumulated + (1 - self.dp_rho) * d
 
         self.counter += 1
 
-    def get(self):
-        if self.dyn_lambda is None:
+    def get(self) -> torch.Tensor:
+        """Computes the mean of the accumulated features.
+
+        Returns:
+            torch.Tensor: mean of the accumulated features.
+        """
+
+        if self.dp_rho is None:
             assert self.counter > 0
             return self.cumulated / self.counter
         else:
@@ -64,16 +84,18 @@ class DirectPred(BaseMomentumModel):
         output_dim: int,
         proj_hidden_dim: int,
         predictor_update_freq: int,
-        dyn_eps: float,
-        dyn_lambda: float,
-        dyn_convert: int,
+        dp_eps: float,
+        dp_rho: float,
         **kwargs,
     ):
-        """Implements DirecPred BYOL (https://arxiv.org/abs/2006.07733).
+        """Implements DirecPred (https://arxiv.org/abs/2006.07733).
 
         Args:
             output_dim (int): number of dimensions of projected features.
             proj_hidden_dim (int): number of neurons of the hidden layers of the projector.
+            predictor_update_freq (int) number of steps between each update of the predictor.
+            dp_eps: eps value for DirectPred in Eq. 18.
+            dp_rho: rho value for DirectPred in Eq. 19.
         """
 
         super().__init__(**kwargs)
@@ -101,11 +123,10 @@ class DirectPred(BaseMomentumModel):
             param.requires_grad = False
 
         self.predictor_update_freq = predictor_update_freq
-        self.dyn_eps = dyn_eps
-        self.dyn_lambda = dyn_lambda
-        self.dyn_convert = dyn_convert
+        self.dp_eps = dp_eps
+        self.dp_rho = dp_rho
 
-        self.cum_corr = Accumulator(dyn_lambda=self.dyn_lambda)
+        self.cum_corr = Accumulator(dp_rho=self.dp_rho)
 
     @staticmethod
     def add_model_specific_args(parent_parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
@@ -117,9 +138,8 @@ class DirectPred(BaseMomentumModel):
         parser.add_argument("--proj_hidden_dim", type=int, default=2048)
 
         parser.add_argument("--predictor_update_freq", type=int, default=1)
-        parser.add_argument("--dyn_eps", type=float, default=0.01)
-        parser.add_argument("--dyn_lambda", type=float, default=0.3)
-        parser.add_argument("--dyn_convert", type=float, default=2)
+        parser.add_argument("--dp_eps", type=float, default=0.01)
+        parser.add_argument("--dp_rho", type=float, default=0.3)
 
         return parent_parser
 
@@ -162,37 +182,42 @@ class DirectPred(BaseMomentumModel):
         p = self.predictor(z)
         return {**out, "z": z, "p": p}
 
-    def compute_w_corr(self, M):
-        """Compute W given correlation matrix.
-        Code copied from:
+    def compute_w_corr(self, M: torch.Tensor) -> torch.Tensor:
+        """Computes W given correlation matrix.
+        Adapted from:
             https://github.com/facebookresearch/luckmatters/blob/master/ssl/real-dataset/byol_trainer.py
 
         Args:
-            M ([type]): [description]
-
-        Raises:
-            RuntimeError: [description]
+            M (torch.Tensor): covariance matrix.
 
         Returns:
-            [type]: [description]
+            torch.Tensor: new weights for the linear predictor.
         """
+
+        # we need to convert because torch.eig doesn't support half precision
         M = M.to(torch.float32)
         D, Q = torch.eig(M, eigenvectors=True)
 
         # if eigen_values >= 1, scale everything down.
         max_eig = D[:, 0].max()
         eigen_values = D[:, 0].clamp(0) / max_eig
-        # Going through a concave function (dyn_convert > 1, e.g., 2 or sqrt function)
+        # Going through a concave function (sqrt function)
         # to boost small eigenvalues (while still keep very small one to be 0)
-        # Note that here dyn_eps is allowed to be negative.
-        eigen_values = eigen_values.pow(1 / self.dyn_convert) + self.dyn_eps
+        # Note that here dp_eps is allowed to be negative.
+        eigen_values = eigen_values.pow(1 / 2) + self.dp_eps
         eigen_values = eigen_values.clamp(1e-4)
 
         w = Q @ eigen_values.diag() @ Q.t()
         w = w.to(torch.half)
         return w
 
-    def update_predictor(self, batch_idx):
+    def update_predictor(self, batch_idx: int):
+        """Updates the predictor via DirectPred by performing eigen-decomposition
+
+        Args:
+            batch_idx (int): current batch index to see if needs to do an update.
+        """
+
         if batch_idx == 0 or batch_idx % self.predictor_update_freq == 0:
             M = self.cum_corr.get()
             if M is not None:

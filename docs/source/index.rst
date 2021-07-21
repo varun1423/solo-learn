@@ -53,6 +53,7 @@ While the library is self contained, it is possible to use the models outside of
    solo/methods/barlow
    solo/methods/byol
    solo/methods/dino
+   solo/methods/direct_pred
    solo/methods/mocov2plus
    solo/methods/nnclr
    solo/methods/simclr
