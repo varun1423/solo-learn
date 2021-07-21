@@ -21,7 +21,8 @@ python3 ../../../main_pretrain.py \
     --hue 0.1 \
     --asymmetric_augmentations \
     --name barlow-$1 \
-    --project debug \
+    --project solo-learn \
+    --entity unitn-mhug \
     --wandb \
     --method barlow_twins \
     --proj_hidden_dim 2048 \

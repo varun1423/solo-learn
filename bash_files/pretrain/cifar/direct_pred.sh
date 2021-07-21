@@ -18,7 +18,8 @@ python3 ../../../main_pretrain.py \
     --hue 0.1 \
     --asymmetric_augmentations \
     --name direct_pred-$1 \
-    --project debug \
+    --project solo-learn \
+    --entity unitn-mhug \
     --wandb \
     --method direct_pred \
     --output_dim 256 \
