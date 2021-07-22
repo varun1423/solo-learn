@@ -7,7 +7,7 @@ python3 ../../../main_pretrain.py \
     --precision 16 \
     --optimizer sgd \
     --scheduler warmup_cosine \
-    --lr 0.03 \
+    --lr 0.06 \
     --classifier_lr 0.1 \
     --weight_decay 0.0004 \
     --batch_size 256 \
@@ -24,6 +24,6 @@ python3 ../../../main_pretrain.py \
     --method direct_pred \
     --output_dim 256 \
     --proj_hidden_dim 4096 \
-    --base_tau_momentum 0.996 \
+    --base_tau_momentum 0.99 \
     --final_tau_momentum 1.0 \
     --momentum_classifier
