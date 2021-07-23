@@ -1,5 +1,5 @@
-BYOL
-----
+DirectPred
+----------
 
-.. autofunction:: solo.losses.byol.byol_loss_func
+.. autofunction:: solo.losses.direct_pred.direct_pred_loss_func
    :noindex:
