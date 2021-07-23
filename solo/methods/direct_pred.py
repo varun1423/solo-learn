@@ -204,13 +204,14 @@ class DirectPred(BaseMomentumModel):
         # Going through a concave function (sqrt function)
         # to boost small eigenvalues (while still keep very small one to be 0)
         # Note that here dp_eps is allowed to be negative.
-        eigen_values = eigen_values.pow(1 / 2) + self.dp_eps
+        eigen_values = eigen_values.sqrt() + self.dp_eps
         eigen_values = eigen_values.clamp(1e-4)
 
         w = Q @ eigen_values.diag() @ Q.t()
         w = w.to(torch.half)
         return w
 
+    @torch.no_grad()
     def update_predictor(self, batch_idx: int):
         """Updates the predictor via DirectPred by performing eigen-decomposition
 
@@ -218,7 +219,7 @@ class DirectPred(BaseMomentumModel):
             batch_idx (int): current batch index to see if needs to do an update.
         """
 
-        if batch_idx == 0 or batch_idx % self.predictor_update_freq == 0:
+        if batch_idx % self.predictor_update_freq == 0:
             M = self.cum_corr.get()
             if M is not None:
                 w = self.compute_w_corr(M)
@@ -247,11 +248,11 @@ class DirectPred(BaseMomentumModel):
         # compute stuff for predictor
         z1_detach = z1.detach()
         z2_detach = z2.detach()
-        corrs, means = [], []
+        corrs = []
         for z in (z1_detach, z2_detach):
             corr = torch.bmm(z.unsqueeze(2), z.unsqueeze(1))
             corrs.append(corr)
-            means.append(z)
+
         self.cum_corr.add_list(corrs)
 
         p1 = self.predictor(z1)
@@ -264,10 +265,6 @@ class DirectPred(BaseMomentumModel):
 
         # ------- contrastive loss -------
         neg_cos_sim = dp_loss_func(p1, z2_momentum) + dp_loss_func(p2, z1_momentum)
-
-        # update predictor via DirectPred
-        self.update_predictor(batch_idx)
-
         # calculate std of features
         z1_std = F.normalize(z1, dim=-1).std(dim=0).mean()
         z2_std = F.normalize(z2, dim=-1).std(dim=0).mean()
@@ -280,3 +277,10 @@ class DirectPred(BaseMomentumModel):
         self.log_dict(metrics, on_epoch=True, sync_dist=True)
 
         return neg_cos_sim + class_loss
+
+    def on_train_batch_end(
+        self, outputs: Dict[str, Any], batch: Sequence[Any], batch_idx: int, dataloader_idx: int
+    ):
+        # update predictor via DirectPred
+        self.update_predictor(batch_idx)
+        super().on_train_batch_end(outputs, batch, batch_idx, dataloader_idx)

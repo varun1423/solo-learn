@@ -7,7 +7,7 @@ python3 ../../../main_pretrain.py \
     --precision 16 \
     --optimizer sgd \
     --scheduler warmup_cosine \
-    --lr 0.06 \
+    --lr 0.03 \
     --classifier_lr 0.1 \
     --weight_decay 0.0004 \
     --batch_size 256 \
