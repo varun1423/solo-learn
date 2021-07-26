@@ -1,0 +1,30 @@
+python3 ../../../main_pretrain.py \
+    --dataset $1 \
+    --encoder resnet18 \
+    --data_dir ./datasets \
+    --max_epochs 1000 \
+    --gpus 0 \
+    --precision 32 \
+    --optimizer sgd \
+    --scheduler cosine \
+    --lr 0.03 \
+    --classifier_lr 0.1 \
+    --weight_decay 5e-4 \
+    --batch_size 256 \
+    --num_workers 5 \
+    --brightness 0.8 \
+    --contrast 0.8 \
+    --saturation 0.8 \
+    --hue 0.2 \
+    --gaussian_prob 0.0 \
+    --solarization_prob 0.0 \
+    --name roma-$1 \
+    --project solo-learn \
+    --wandb \
+    --method roma \
+    --proj_hidden_dim 2048 \
+    --output_dim 2048 \
+    --temperature 0.5 \
+    --random_projection_dim 1024 \
+    --gamma 1 \
+    --lamb 8

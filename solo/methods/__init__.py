@@ -1,3 +1,4 @@
+from solo.methods.roma import ROMA
 from solo.methods.barlow_twins import BarlowTwins
 from solo.methods.base import BaseModel
 from solo.methods.byol import BYOL
@@ -21,6 +22,7 @@ METHODS = {
     "dino": DINO,
     "mocov2plus": MoCoV2Plus,
     "nnclr": NNCLR,
+    "roma": ROMA,
     "simclr": SimCLR,
     "simsiam": SimSiam,
     "swav": SwAV,
@@ -35,6 +37,7 @@ __all__ = [
     "LinearModel",
     "MoCoV2Plus",
     "NNCLR",
+    "ROMA",
     "SimCLR",
     "SimSiam",
     "SwAV",

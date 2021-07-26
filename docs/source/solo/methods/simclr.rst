@@ -1,5 +1,5 @@
 SimCLR
-============
+======
 
 
 .. automethod:: solo.methods.simclr.SimCLR.__init__
