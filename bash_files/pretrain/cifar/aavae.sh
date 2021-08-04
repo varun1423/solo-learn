@@ -1,0 +1,32 @@
+python3 ../../../main_pretrain.py \
+    --dataset $1 \
+    --encoder resnet18 \
+    --data_dir /data/datasets \
+    --max_epochs 1000 \
+    --gpus 0 \
+    --precision 16 \
+    --optimizer adam \
+    --scheduler warmup_cosine \
+    --lr 2.5e-4 \
+    --classifier_lr 0.1 \
+    --weight_decay 1e-5 \
+    --batch_size 256 \
+    --num_workers 5 \
+    --brightness 0.8 \
+    --contrast 0.8 \
+    --saturation 0.8 \
+    --hue 0.2 \
+    --min_scale 0.08 \
+    --gaussian_prob 0.0 \
+    --solarization_prob 0.0 \
+    --original_img \
+    --name aavae-$1 \
+    --project solo-learn \
+    --wandb \
+    --method aavae \
+    --output_dim 128 \
+    --proj_hidden_dim 2048 \
+    --decoder_hidden_dim 2048 \
+    --kl_coeff 0.0 \
+    --log_scale 0.0 \
+    --debug_augmentations
