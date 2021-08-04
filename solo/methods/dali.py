@@ -5,6 +5,7 @@ import torch
 from nvidia.dali.plugin.pytorch import DALIGenericIterator, LastBatchPolicy
 from solo.utils.dali_dataloader import (
     CustomTransform,
+    ImagenetValTransform,
     PretrainPipeline,
     ImagenetTransform,
     MulticropPretrainPipeline,
@@ -99,6 +100,8 @@ class PretrainABC(ABC):
         data_dir = Path(self.extra_args["data_dir"])
         train_dir = Path(self.extra_args["train_dir"])
 
+        original_img = self.extra_args["original_img"]
+
         # handle custom data by creating the needed pipeline
         dataset = self.extra_args["dataset"]
         if dataset in ["imagenet100", "imagenet"]:
@@ -159,12 +162,8 @@ class PretrainABC(ABC):
                     max_scale=1.0,
                 )
 
-            if args.original_img:
-                from solo.utils.classification_dataloader import (
-                    prepare_transforms as prepare_transforms_classification,
-                )
-
-                validation_transform = prepare_transforms_classification(args.dataset)[1]
+            if original_img:
+                validation_transform = ImagenetValTransform(device=dali_device)
                 transform = [validation_transform, transform]
 
             train_pipeline = PretrainPipeline(

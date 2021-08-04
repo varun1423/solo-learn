@@ -266,7 +266,7 @@ class NormalPipeline(Pipeline):
         return (images, labels)
 
 
-class ValTransform:
+class ImagenetValTransform:
     def __init__(
         self,
         device: str,
@@ -294,15 +294,10 @@ class ValTransform:
             mean=[0.485 * 255, 0.456 * 255, 0.406 * 255],
             std=[0.228 * 255, 0.224 * 255, 0.225 * 255],
         )
-        self.coin05 = ops.random.CoinFlip(probability=0.5)
 
     def __call__(self, images):
-        out = self.random_crop(images)
-        out = self.random_color_jitter(out)
-        out = self.random_grayscale(out)
-        out = self.random_gaussian_blur(out)
-        out = self.random_solarization(out)
-        out = self.cmn(out, mirror=self.coin05())
+        out = self.resize(images)
+        out = self.cmn(out)
         return out
 
 
