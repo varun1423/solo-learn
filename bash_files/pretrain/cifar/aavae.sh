@@ -5,7 +5,7 @@ python3 ../../../main_pretrain.py \
     --max_epochs 1000 \
     --gpus 0 \
     --precision 16 \
-    --optimizer adam \
+    --optimizer sgd \
     --scheduler warmup_cosine \
     --lr 2.5e-4 \
     --classifier_lr 0.1 \
@@ -27,6 +27,5 @@ python3 ../../../main_pretrain.py \
     --output_dim 128 \
     --proj_hidden_dim 2048 \
     --decoder_hidden_dim 2048 \
-    --kl_coeff 0.0 \
-    --log_scale 0.0 \
-    --debug_augmentations
+    --kl_coeff 0.1 \
+    --log_scale 0.0
