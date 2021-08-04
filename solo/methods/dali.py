@@ -159,6 +159,14 @@ class PretrainABC(ABC):
                     max_scale=1.0,
                 )
 
+            if args.original_img:
+                from solo.utils.classification_dataloader import (
+                    prepare_transforms as prepare_transforms_classification,
+                )
+
+                validation_transform = prepare_transforms_classification(args.dataset)[1]
+                transform = [validation_transform, transform]
+
             train_pipeline = PretrainPipeline(
                 data_dir / train_dir,
                 batch_size=self.batch_size,

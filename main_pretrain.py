@@ -63,6 +63,14 @@ def main():
                 args.dataset, multicrop=args.multicrop, **args.transform_kwargs
             )
 
+        if args.original_img:
+            from solo.utils.classification_dataloader import (
+                prepare_transforms as prepare_transforms_classification,
+            )
+
+            val_transform = prepare_transforms_classification(args.dataset)[1]
+            transform = [val_transform, transform]
+
         if args.debug_augmentations:
             print("Transforms:")
             pprint(transform)

@@ -250,7 +250,6 @@ class NormalPipeline(Pipeline):
         inputs, labels = self.reader(name="Reader")
         images = self.decode(inputs)
 
-        # crop into large and small images
         images = self.resize(images)
 
         if self.validation:
@@ -265,6 +264,46 @@ class NormalPipeline(Pipeline):
         # PyTorch expects labels as INT64
         labels = self.to_int64(labels)
         return (images, labels)
+
+
+class ValTransform:
+    def __init__(
+        self,
+        device: str,
+    ):
+        """Applies a simple validation transformation.
+
+        Args:
+            device (str): device on which the operations will be performed.
+            size (int, optional): size of the side of the image after transformation. Defaults
+                to 224.
+        """
+
+        # random crop
+        self.resize = ops.Resize(
+            device=self.device,
+            resize_shorter=256,
+            interp_type=types.INTERP_CUBIC,
+        )
+
+        # normalize and horizontal flip
+        self.cmn = ops.CropMirrorNormalize(
+            device=device,
+            dtype=types.FLOAT,
+            output_layout=types.NCHW,
+            mean=[0.485 * 255, 0.456 * 255, 0.406 * 255],
+            std=[0.228 * 255, 0.224 * 255, 0.225 * 255],
+        )
+        self.coin05 = ops.random.CoinFlip(probability=0.5)
+
+    def __call__(self, images):
+        out = self.random_crop(images)
+        out = self.random_color_jitter(out)
+        out = self.random_grayscale(out)
+        out = self.random_gaussian_blur(out)
+        out = self.random_solarization(out)
+        out = self.cmn(out, mirror=self.coin05())
+        return out
 
 
 class ImagenetTransform:

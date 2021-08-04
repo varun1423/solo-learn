@@ -63,3 +63,6 @@ def augmentations_args(parser: ArgumentParser):
 
     # debug
     parser.add_argument("--debug_augmentations", action="store_true")
+
+    # return original image
+    parser.add_argument("--original_img", action="store_true")

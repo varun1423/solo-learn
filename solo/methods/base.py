@@ -132,6 +132,7 @@ class BaseModel(pl.LightningModule):
         assert encoder in ["resnet18", "resnet50"]
         from torchvision.models import resnet18, resnet50
 
+        self.encoder_name = encoder
         self.base_model = {"resnet18": resnet18, "resnet50": resnet50}[encoder]
 
         # initialize encoder
