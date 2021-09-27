@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Sequence, Type, Union
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from solo.methods.base import BaseModel
+from solo.methods.base import BaseMethod
 
 
 class Interpolate(nn.Module):
@@ -294,7 +294,7 @@ class ProjectorVAE(nn.Module):
         return self.mu(x), self.logvar(x)
 
 
-class AAVAE(BaseModel):
+class AAVAE(BaseMethod):
     def __init__(
         self,
         output_dim: int,
@@ -318,7 +318,7 @@ class AAVAE(BaseModel):
         self.log_scale = nn.Parameter(torch.Tensor([log_scale]))
 
         # projector
-        self.projector = ProjectorVAE(self.features_size, proj_hidden_dim, output_dim)
+        self.projector = ProjectorVAE(self.features_dim, proj_hidden_dim, output_dim)
 
         # decoder
         dataset = self.extra_args["dataset"]
@@ -329,13 +329,15 @@ class AAVAE(BaseModel):
         elif dataset in ["imagenet100", "imagenet"]:
             input_size = 224
 
+        kwargs = self.backbone_args.copy()
+        cifar = kwargs.pop("cifar", False)
         decoder_model = {"resnet18": decoder18, "resnet50": decoder50}[self.encoder_name]
         self.decoder = decoder_model(
             input_height=input_size,
             latent_dim=output_dim,
             h_dim=decoder_hidden_dim,
-            cifar=self.cifar,
-            remove_first_maxpool=self.cifar,
+            cifar=cifar,
+            remove_first_maxpool=cifar,
         )
 
         self.cosine_similarity = nn.CosineSimilarity(dim=1, eps=1e-6)
@@ -416,7 +418,7 @@ class AAVAE(BaseModel):
         return log_pxz.sum(dim=(1, 2, 3))
 
     def training_step(self, batch: Sequence[Any], batch_idx: int) -> torch.Tensor:
-        """Training step for SimCLR and supervised SimCLR reusing BaseModel training step.
+        """Training step for SimCLR and supervised SimCLR reusing BaseMethod training step.
 
         Args:
             batch (Sequence[Any]): a batch of data in the format of [img_indexes, [X], Y], where

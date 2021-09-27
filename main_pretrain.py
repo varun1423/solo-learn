@@ -181,11 +181,7 @@ def main():
         args,
         logger=wandb_logger if args.wandb else None,
         callbacks=callbacks,
-<<<<<<< HEAD
-        plugins=DDPPlugin(find_unused_parameters=True),
-=======
         plugins=DDPPlugin(find_unused_parameters=True) if args.accelerator == "ddp" else None,
->>>>>>> e796b03532333bdbe2eeb04fb8a9b6ff7e0a4fec
         checkpoint_callback=False,
         terminate_on_nan=True,
     )
