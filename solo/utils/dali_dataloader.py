@@ -269,7 +269,6 @@ class NormalPipeline(Pipeline):
         inputs, labels = self.reader(name="Reader")
         images = self.decode(inputs)
 
-        # crop into large and small images
         images = self.resize(images)
 
         if self.validation:
@@ -285,6 +284,41 @@ class NormalPipeline(Pipeline):
         labels = self.to_int64(labels)
 
         return (images, labels)
+
+
+class ImagenetValTransform:
+    def __init__(
+        self,
+        device: str,
+    ):
+        """Applies a simple validation transformation.
+
+        Args:
+            device (str): device on which the operations will be performed.
+            size (int, optional): size of the side of the image after transformation. Defaults
+                to 224.
+        """
+
+        # random crop
+        self.resize = ops.Resize(
+            device=self.device,
+            resize_shorter=256,
+            interp_type=types.INTERP_CUBIC,
+        )
+
+        # normalize and horizontal flip
+        self.cmn = ops.CropMirrorNormalize(
+            device=device,
+            dtype=types.FLOAT,
+            output_layout=types.NCHW,
+            mean=[0.485 * 255, 0.456 * 255, 0.406 * 255],
+            std=[0.228 * 255, 0.224 * 255, 0.225 * 255],
+        )
+
+    def __call__(self, images):
+        out = self.resize(images)
+        out = self.cmn(out)
+        return out
 
 
 class CustomNormalPipeline(NormalPipeline):

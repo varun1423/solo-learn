@@ -29,6 +29,7 @@ from solo.utils.dali_dataloader import (
     CustomNormalPipeline,
     CustomTransform,
     ImagenetTransform,
+    ImagenetValTransform,
     MulticropPretrainPipeline,
     NormalPipeline,
     PretrainPipeline,
@@ -156,8 +157,7 @@ class PretrainABC(ABC):
         data_dir = Path(self.extra_args["data_dir"])
         train_dir = Path(self.extra_args["train_dir"])
 
-        # hack to encode image indexes into the labels
-        self.encode_indexes_into_labels = self.extra_args["encode_indexes_into_labels"]
+        original_img = self.extra_args["original_img"]
 
         # handle custom data by creating the needed pipeline
         dataset = self.extra_args["dataset"]
@@ -219,6 +219,10 @@ class PretrainABC(ABC):
                     **transform_kwargs,
                     max_scale=1.0,
                 )
+
+            if original_img:
+                validation_transform = ImagenetValTransform(device=dali_device)
+                transform = [validation_transform, transform]
 
             train_pipeline = PretrainPipeline(
                 data_dir / train_dir,
