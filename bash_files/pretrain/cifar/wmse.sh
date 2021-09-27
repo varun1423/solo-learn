@@ -3,9 +3,9 @@ python3 ../../../main_pretrain.py \
     --encoder resnet18 \
     --data_dir ./datasets \
     --max_epochs 1000 \
-    --precision 16 \
     --gpus 0 \
-    --num_workers 3 \
+    --precision 16 \
+    --num_workers 4 \
     --optimizer adam \
     --scheduler warmup_cosine \
     --warmup_epochs 2 \
@@ -18,11 +18,13 @@ python3 ../../../main_pretrain.py \
     --contrast 0.4 \
     --saturation 0.2 \
     --hue 0.1 \
+    --gaussian_prob 0.0 0.0 \
     --min_scale 0.2 \
     --name wmse-$1 \
     --wandb \
+    --save_checkpoint \
     --project solo-learn \
     --entity unitn-mhug \
     --method wmse \
-    --output_dim 64 \
+    --proj_output_dim 64 \
     --whitening_size 128

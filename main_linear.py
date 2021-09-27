@@ -1,3 +1,22 @@
+# Copyright 2021 solo-learn development team.
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy of
+# this software and associated documentation files (the "Software"), to deal in
+# the Software without restriction, including without limitation the rights to use,
+# copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the
+# Software, and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all copies
+# or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+# PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+# FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+# OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
+
 import os
 
 import torch
@@ -9,6 +28,17 @@ from pytorch_lightning.plugins import DDPPlugin
 from torchvision.models import resnet18, resnet50
 
 from solo.args.setup import parse_args_linear
+from solo.methods.base import BaseMethod
+from solo.utils.backbones import (
+    swin_base,
+    swin_large,
+    swin_small,
+    swin_tiny,
+    vit_base,
+    vit_large,
+    vit_small,
+    vit_tiny,
+)
 
 try:
     from solo.methods.dali import ClassificationABC
@@ -17,24 +47,41 @@ except ImportError:
 else:
     _dali_avaliable = True
 from solo.methods.linear import LinearModel
-from solo.utils.classification_dataloader import prepare_data
 from solo.utils.checkpointer import Checkpointer
+from solo.utils.classification_dataloader import prepare_data
 
 
 def main():
     args = parse_args_linear()
 
-    if args.encoder == "resnet18":
-        backbone = resnet18()
-    elif args.encoder == "resnet50":
-        backbone = resnet50()
-    else:
-        raise ValueError("Only [resnet18, resnet50] are currently supported.")
+    assert args.encoder in BaseMethod._SUPPORTED_ENCODERS
+    backbone_model = {
+        "resnet18": resnet18,
+        "resnet50": resnet50,
+        "vit_tiny": vit_tiny,
+        "vit_small": vit_small,
+        "vit_base": vit_base,
+        "vit_large": vit_large,
+        "swin_tiny": swin_tiny,
+        "swin_small": swin_small,
+        "swin_base": swin_base,
+        "swin_large": swin_large,
+    }[args.encoder]
 
-    if args.cifar:
-        backbone.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=2, bias=False)
-        backbone.maxpool = nn.Identity()
-    backbone.fc = nn.Identity()
+    # initialize encoder
+    kwargs = args.backbone_args
+    cifar = kwargs.pop("cifar", False)
+    # swin specific
+    if "swin" in args.encoder and cifar:
+        kwargs["window_size"] = 4
+
+    backbone = backbone_model(**kwargs)
+    if "resnet" in args.encoder:
+        # remove fc layer
+        backbone.fc = nn.Identity()
+        if cifar:
+            backbone.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=2, bias=False)
+            backbone.maxpool = nn.Identity()
 
     assert (
         args.pretrained_feature_extractor.endswith(".ckpt")
@@ -83,6 +130,7 @@ def main():
         lr_monitor = LearningRateMonitor(logging_interval="epoch")
         callbacks.append(lr_monitor)
 
+    if args.save_checkpoint:
         # save checkpoint on last epoch only
         ckpt = Checkpointer(
             args,
@@ -95,10 +143,9 @@ def main():
         args,
         logger=wandb_logger if args.wandb else None,
         callbacks=callbacks,
-        plugins=DDPPlugin(find_unused_parameters=False),
+        plugins=DDPPlugin(find_unused_parameters=True) if args.accelerator == "ddp" else None,
         checkpoint_callback=False,
         terminate_on_nan=True,
-        accelerator="ddp",
     )
     if args.dali:
         trainer.fit(model, val_dataloaders=val_loader)

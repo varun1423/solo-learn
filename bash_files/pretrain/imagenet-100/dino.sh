@@ -6,7 +6,7 @@ python3 ../../../main_pretrain.py \
     --val_dir imagenet-100/val \
     --max_epochs 400 \
     --gpus 0,1 \
-    --distributed_backend ddp \
+    --accelerator ddp \
     --sync_batchnorm \
     --precision 16 \
     --optimizer sgd \
@@ -19,7 +19,7 @@ python3 ../../../main_pretrain.py \
     --classifier_lr 0.1 \
     --weight_decay 1e-6 \
     --batch_size 128 \
-    --num_workers 8 \
+    --num_workers 4 \
     --dali \
     --brightness 0.4 \
     --contrast 0.4 \
@@ -31,8 +31,9 @@ python3 ../../../main_pretrain.py \
     --entity unitn-mhug \
     --project solo-learn \
     --wandb \
+    --save_checkpoint \
     --method dino \
-    --output_dim 256 \
+    --proj_output_dim 256 \
     --proj_hidden_dim 2048 \
     --num_prototypes 4096 \
     --base_tau_momentum 0.9995 \

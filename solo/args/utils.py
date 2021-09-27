@@ -1,3 +1,22 @@
+# Copyright 2021 solo-learn development team.
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy of
+# this software and associated documentation files (the "Software"), to deal in
+# the Software without restriction, including without limitation the rights to use,
+# copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the
+# Software, and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all copies
+# or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+# PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+# FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+# OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
+
 import os
 from argparse import Namespace
 
@@ -32,15 +51,13 @@ def additional_setup_pretrain(args: Namespace):
         - gaussian_prob, solarization_prob: optional augmentations settings.
     """
 
-    args.transform_kwargs = {}
-
     if args.dataset in N_CLASSES_PER_DATASET:
-        args.n_classes = N_CLASSES_PER_DATASET[args.dataset]
+        args.num_classes = N_CLASSES_PER_DATASET[args.dataset]
     else:
         # hack to maintain the current pipeline
         # even if the custom dataset doesn't have any labels
         dir_path = args.data_dir / args.train_dir
-        args.n_classes = max(
+        args.num_classes = max(
             1,
             len([entry.name for entry in os.scandir(dir_path) if entry.is_dir]),
         )
@@ -58,7 +75,7 @@ def additional_setup_pretrain(args: Namespace):
             args.size,
         ]
     )
-    assert unique_augs == args.n_crops or unique_augs == 1
+    assert unique_augs == args.num_crops or unique_augs == 1
 
     # assert that either all unique augmentation pipelines have a unique
     # parameter or that a single parameter is replicated to all pipelines
@@ -136,7 +153,7 @@ def additional_setup_pretrain(args: Namespace):
         )
 
     # add support for custom mean and std
-    if not args.multicrop and args.dataset == "custom":
+    if args.dataset == "custom":
         if isinstance(args.transform_kwargs, dict):
             args.transform_kwargs["mean"] = args.mean
             args.transform_kwargs["std"] = args.std
@@ -152,7 +169,31 @@ def additional_setup_pretrain(args: Namespace):
             for kwargs in args.transform_kwargs:
                 del kwargs["size"]
 
-    args.cifar = True if args.dataset in ["cifar10", "cifar100"] else False
+    # create backbone-specific arguments
+    args.backbone_args = {"cifar": True if args.dataset in ["cifar10", "cifar100"] else False}
+    if "resnet" in args.encoder:
+        args.backbone_args["zero_init_residual"] = args.zero_init_residual
+    else:
+        # dataset related for all transformers
+        dataset = args.dataset
+        if "cifar" in dataset:
+            args.backbone_args["img_size"] = 32
+        elif "stl" in dataset:
+            args.backbone_args["img_size"] = 96
+        elif "imagenet" in dataset:
+            args.backbone_args["img_size"] = 224
+        elif "custom" in dataset:
+            transform_kwargs = args.transform_kwargs
+            if isinstance(transform_kwargs, list):
+                args.backbone_args["img_size"] = transform_kwargs[0]["size"]
+            else:
+                args.backbone_args["img_size"] = transform_kwargs["size"]
+
+        if "vit" in args.encoder:
+            args.backbone_args["patch_size"] = args.patch_size
+
+    del args.zero_init_residual
+    del args.patch_size
 
     if args.dali:
         assert args.dataset in ["imagenet100", "imagenet", "custom"]
@@ -185,9 +226,31 @@ def additional_setup_linear(args: Namespace):
     """
 
     assert args.dataset in N_CLASSES_PER_DATASET
-    args.n_classes = N_CLASSES_PER_DATASET[args.dataset]
+    args.num_classes = N_CLASSES_PER_DATASET[args.dataset]
 
-    args.cifar = True if args.dataset in ["cifar10", "cifar100"] else False
+    # create backbone-specific arguments
+    args.backbone_args = {"cifar": True if args.dataset in ["cifar10", "cifar100"] else False}
+
+    if "resnet" not in args.encoder:
+        # dataset related for all transformers
+        dataset = args.dataset
+        if "cifar" in dataset:
+            args.backbone_args["img_size"] = 32
+        elif "stl" in dataset:
+            args.backbone_args["img_size"] = 96
+        elif "imagenet" in dataset:
+            args.backbone_args["img_size"] = 224
+        elif "custom" in dataset:
+            transform_kwargs = args.transform_kwargs
+            if isinstance(transform_kwargs, list):
+                args.backbone_args["img_size"] = transform_kwargs[0]["size"]
+            else:
+                args.backbone_args["img_size"] = transform_kwargs["size"]
+
+        if "vit" in args.encoder:
+            args.backbone_args["patch_size"] = args.patch_size
+
+    del args.patch_size
 
     if args.dali:
         assert args.dataset in ["imagenet100", "imagenet"]

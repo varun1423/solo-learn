@@ -6,6 +6,7 @@ python3 ../../../main_pretrain.py \
     --val_dir imagenet-100/val \
     --max_epochs 400 \
     --gpus 0,1 \
+    --accelerator ddp \
     --precision 16 \
     --optimizer sgd \
     --scheduler warmup_cosine \
@@ -13,7 +14,7 @@ python3 ../../../main_pretrain.py \
     --classifier_lr 0.1 \
     --weight_decay 1e-4 \
     --batch_size 128 \
-    --num_workers 5 \
+    --num_workers 4 \
     --dali \
     --brightness 0.4 0.0 \
     --contrast 0.4 0.0 \
@@ -25,8 +26,9 @@ python3 ../../../main_pretrain.py \
     --project solo-learn \
     --entity unitn-mhug \
     --wandb \
+    --save_checkpoint \
     --method ressl \
-    --output_dim 256 \
+    --proj_output_dim 256 \
     --proj_hidden_dim 4096 \
     --base_tau_momentum 0.99 \
     --final_tau_momentum 1.0 \

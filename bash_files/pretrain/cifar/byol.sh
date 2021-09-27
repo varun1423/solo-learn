@@ -15,7 +15,7 @@ python3 ../../../main_pretrain.py \
     --classifier_lr 0.1 \
     --weight_decay 1e-5 \
     --batch_size 256 \
-    --num_workers 5 \
+    --num_workers 4 \
     --brightness 0.4 \
     --contrast 0.4 \
     --saturation 0.2 \
@@ -26,8 +26,9 @@ python3 ../../../main_pretrain.py \
     --project solo-learn \
     --entity unitn-mhug \
     --wandb \
+    --save_checkpoint \
     --method byol \
-    --output_dim 256 \
+    --proj_output_dim 256 \
     --proj_hidden_dim 4096 \
     --pred_hidden_dim 4096 \
     --base_tau_momentum 0.99 \

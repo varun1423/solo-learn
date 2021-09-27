@@ -1,3 +1,22 @@
+# Copyright 2021 solo-learn development team.
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy of
+# this software and associated documentation files (the "Software"), to deal in
+# the Software without restriction, including without limitation the rights to use,
+# copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the
+# Software, and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all copies
+# or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+# PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+# FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+# OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
+
 import argparse
 from typing import Any, Dict, List, Sequence
 
@@ -5,13 +24,13 @@ import torch
 import torch.nn as nn
 from einops import repeat
 from solo.losses.simclr import manual_simclr_loss_func, simclr_loss_func
-from solo.methods.base import BaseModel
+from solo.methods.base import BaseMethod
 
 
-class SimCLR(BaseModel):
+class SimCLR(BaseMethod):
     def __init__(
         self,
-        output_dim: int,
+        proj_output_dim: int,
         proj_hidden_dim: int,
         temperature: float,
         supervised: bool = False,
@@ -20,7 +39,7 @@ class SimCLR(BaseModel):
         """Implements SimCLR (https://arxiv.org/abs/2002.05709).
 
         Args:
-            output_dim (int): number of dimensions of the projected features.
+            proj_output_dim (int): number of dimensions of the projected features.
             proj_hidden_dim (int): number of neurons in the hidden layers of the projector.
             temperature (float): temperature for the softmax in the contrastive loss.
             supervised (bool): whether or not to use supervised contrastive loss. Defaults to False.
@@ -33,9 +52,9 @@ class SimCLR(BaseModel):
 
         # projector
         self.projector = nn.Sequential(
-            nn.Linear(self.features_size, proj_hidden_dim),
+            nn.Linear(self.features_dim, proj_hidden_dim),
             nn.ReLU(),
-            nn.Linear(proj_hidden_dim, output_dim),
+            nn.Linear(proj_hidden_dim, proj_output_dim),
         )
 
     @staticmethod
@@ -44,7 +63,7 @@ class SimCLR(BaseModel):
         parser = parent_parser.add_argument_group("simclr")
 
         # projector
-        parser.add_argument("--output_dim", type=int, default=128)
+        parser.add_argument("--proj_output_dim", type=int, default=128)
         parser.add_argument("--proj_hidden_dim", type=int, default=2048)
 
         # parameters
@@ -93,7 +112,7 @@ class SimCLR(BaseModel):
         """
 
         if self.multicrop:
-            n_augs = self.n_crops + self.n_small_crops
+            n_augs = self.num_crops + self.num_small_crops
         else:
             n_augs = 2
         labels_matrix = repeat(Y, "b -> c (d b)", c=n_augs * Y.size(0), d=n_augs)
@@ -101,11 +120,11 @@ class SimCLR(BaseModel):
         return labels_matrix
 
     def training_step(self, batch: Sequence[Any], batch_idx: int) -> torch.Tensor:
-        """Training step for SimCLR and supervised SimCLR reusing BaseModel training step.
+        """Training step for SimCLR and supervised SimCLR reusing BaseMethod training step.
 
         Args:
             batch (Sequence[Any]): a batch of data in the format of [img_indexes, [X], Y], where
-                [X] is a list of size self.n_crops containing batches of images.
+                [X] is a list of size self.num_crops containing batches of images.
             batch_idx (int): index of the batch.
 
         Returns:
@@ -118,7 +137,7 @@ class SimCLR(BaseModel):
         class_loss = out["loss"]
 
         if self.multicrop:
-            n_augs = self.n_crops + self.n_small_crops
+            n_augs = self.num_crops + self.num_small_crops
 
             feats = out["feats"]
 

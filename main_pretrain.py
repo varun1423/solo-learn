@@ -1,3 +1,22 @@
+# Copyright 2021 solo-learn development team.
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy of
+# this software and associated documentation files (the "Software"), to deal in
+# the Software without restriction, including without limitation the rights to use,
+# copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the
+# Software, and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all copies
+# or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+# PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+# FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+# OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
+
 import os
 from pprint import pprint
 
@@ -87,13 +106,13 @@ def main():
                 size_crops = [224, 96]
 
             transform = prepare_multicrop_transform(
-                transform, size_crops=size_crops, n_crops=[args.n_crops, args.n_small_crops]
+                transform, size_crops=size_crops, num_crops=[args.num_crops, args.num_small_crops]
             )
         else:
-            if args.n_crops != 2:
+            if args.num_crops != 2:
                 assert args.method == "wmse"
 
-            transform = prepare_n_crop_transform(transform, n_crops=args.n_crops)
+            transform = prepare_n_crop_transform(transform, num_crops=args.num_crops)
 
         train_dataset = prepare_datasets(
             args.dataset,
@@ -107,7 +126,9 @@ def main():
         )
 
     # normal dataloader for when it is available
-    if args.dataset in ["imagenet100", "imagenet", "custom"] and args.val_dir is None:
+    if args.dataset == "custom" and (args.no_labels or args.val_dir is None):
+        val_loader = None
+    elif args.dataset in ["imagenet100", "imagenet"] and args.val_dir is None:
         val_loader = None
     else:
         _, val_loader = prepare_data_classification(
@@ -136,6 +157,7 @@ def main():
         lr_monitor = LearningRateMonitor(logging_interval="epoch")
         callbacks.append(lr_monitor)
 
+    if args.save_checkpoint:
         # save checkpoint on last epoch only
         ckpt = Checkpointer(
             args,
@@ -144,25 +166,28 @@ def main():
         )
         callbacks.append(ckpt)
 
-        if args.auto_umap:
-            assert (
-                _umap_available
-            ), "UMAP is not currently avaiable, please install it first with [umap]."
-            auto_umap = AutoUMAP(
-                args,
-                logdir=os.path.join(args.auto_umap_dir, args.method),
-                frequency=args.auto_umap_frequency,
-            )
-            callbacks.append(auto_umap)
+    if args.auto_umap:
+        assert (
+            _umap_available
+        ), "UMAP is not currently avaiable, please install it first with [umap]."
+        auto_umap = AutoUMAP(
+            args,
+            logdir=os.path.join(args.auto_umap_dir, args.method),
+            frequency=args.auto_umap_frequency,
+        )
+        callbacks.append(auto_umap)
 
     trainer = Trainer.from_argparse_args(
         args,
         logger=wandb_logger if args.wandb else None,
         callbacks=callbacks,
+<<<<<<< HEAD
         plugins=DDPPlugin(find_unused_parameters=True),
+=======
+        plugins=DDPPlugin(find_unused_parameters=True) if args.accelerator == "ddp" else None,
+>>>>>>> e796b03532333bdbe2eeb04fb8a9b6ff7e0a4fec
         checkpoint_callback=False,
         terminate_on_nan=True,
-        accelerator="ddp",
     )
 
     if args.dali:

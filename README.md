@@ -15,9 +15,13 @@ While the library is self contained, it is possible to use the models outside of
 ---
 
 ## News
-* **[Aug 21]**: :hedgehog: [ReSSL](https://arxiv.org/abs/2107.09282) is now available.
-* **[Jul 21]**: :test_tube: Added Custom Dataset support.
-* **[Jul 21]**: :carousel_horse: Added AutoUMAP.
+* **[Sep 19 2021]**: :kangaroo: Added online k-NN evaluation.
+* **[Sep 17 2021]**: :robot: Added [ViT](https://arxiv.org/abs/2010.11929) and [Swin](https://arxiv.org/abs/2103.14030).
+* **[Sep 13 2021]**: :book: Improved [Docs](https://solo-learn.readthedocs.io/en/latest/?badge=latest) and added tutorials for [pretraining](https://solo-learn.readthedocs.io/en/latest/tutorials/overview.html) and [offline linear eval](https://solo-learn.readthedocs.io/en/latest/tutorials/offline_linear_eval.html).
+* **[Aug 13 2021]**: :whale: [DeepCluster V2](https://arxiv.org/abs/2006.09882) is now available.
+* **[Jul 31 2021]**: :hedgehog: [ReSSL](https://arxiv.org/abs/2107.09282) is now available.
+* **[Jul 21 2021]**: :test_tube: Added Custom Dataset support.
+* **[Jul 21 2021]**: :carousel_horse: Added AutoUMAP.
 
 ---
 
@@ -25,6 +29,7 @@ While the library is self contained, it is possible to use the models outside of
 
 * [Barlow Twins](https://arxiv.org/abs/2103.03230)
 * [BYOL](https://arxiv.org/abs/2006.07733)
+* [DeepCluster V2](https://arxiv.org/abs/2006.09882)
 * [DINO](https://arxiv.org/abs/2104.14294)
 * [MoCo V2+](https://arxiv.org/abs/2003.04297)
 * [NNCLR](https://arxiv.org/abs/2104.14548)
@@ -40,21 +45,22 @@ While the library is self contained, it is possible to use the models outside of
 ## Extra flavor
 
 ### Data
-* Increased data processing speed by up to 100% using [Nvidia Dali](https://github.com/NVIDIA/DALI)
-* Asymmetric and symmetric augmentations
+* Increased data processing speed by up to 100% using [Nvidia Dali](https://github.com/NVIDIA/DALI).
+* Asymmetric and symmetric augmentations.
 ### Evaluation and logging
-* Online linear evaluation via stop-gradient for easier debugging and prototyping (optionally available for the momentum encoder as well)
-* Normal offline linear evaluation
-* All the perks of PyTorch Lightning (mixed precision, gradient accumulation, clipping, automatic logging and much more)
-* Easy-to-extend modular code structure
-* Custom model logging with a simpler file organization
-* Automatic feature space visualization with UMAP
+* Online linear evaluation via stop-gradient for easier debugging and prototyping (optionally available for the momentum encoder as well).
+* Online Knn evaluation.
+* Normal offline linear evaluation.
+* All the perks of PyTorch Lightning (mixed precision, gradient accumulation, clipping, automatic logging and much more).
+* Easy-to-extend modular code structure.
+* Custom model logging with a simpler file organization.
+* Automatic feature space visualization with UMAP.
 * Common metrics and more to come...
 ### Training tricks
 * Multi-cropping dataloading following [SwAV](https://arxiv.org/abs/2006.09882):
-    * **Note**: currently, only SimCLR supports this
-* Exclude batchnorm and biases from LARS
-* No LR scheduler for the projection head in SimSiam
+    * **Note**: currently, only SimCLR supports this.
+* Exclude batchnorm and biases from LARS.
+* No LR scheduler for the projection head in SimSiam.
 ---
 ## Requirements
 
@@ -110,6 +116,7 @@ After that, for offline linear evaluation, follow the examples on `bash_files/li
 |--------------|:--------:|:------:|:----:|:--------------:|:---------------:|:--------------:|:---------------:|:----------:|
 | Barlow Twins | ResNet18 |  1000  |  :x: |      92.10     |                 |     99.73      |                 | [:link:](https://drive.google.com/drive/folders/1L5RAM3lCSViD2zEqLtC-GQKVw6mxtxJ_?usp=sharing) |
 | BYOL         | ResNet18 |  1000  |  :x: |      92.58     |                 |     99.79      |                 | [:link:](https://drive.google.com/drive/folders/1KxeYAEE7Ev9kdFFhXWkPZhG-ya3_UwGP?usp=sharing) |
+|DeepCluster V2| ResNet18 |  1000  |  :x: |      88.85     |                 |     99.58      |                 | [:link:](https://drive.google.com/drive/folders/1tkEbiDQ38vZaQUsT6_vEpxbDxSUAGwF-?usp=sharing) |
 | DINO         | ResNet18 |  1000  |  :x: |      89.52     |                 |     99.71      |                 | [:link:](https://drive.google.com/drive/folders/1vyqZKUyP8sQyEyf2cqonxlGMbQC-D1Gi?usp=sharing) |
 | MoCo V2+     | ResNet18 |  1000  |  :x: |      92.94     |                 |     99.79      |                 | [:link:](https://drive.google.com/drive/folders/1ruNFEB3F-Otxv2Y0p62wrjA4v5Fr2cKC?usp=sharing) |
 | NNCLR        | ResNet18 |  1000  |  :x: |      91.88     |                 |     99.78      |                 | [:link:](https://drive.google.com/drive/folders/1xdCzhvRehPmxinphuiZqFlfBwfwWDcLh?usp=sharing) |
@@ -127,6 +134,7 @@ After that, for offline linear evaluation, follow the examples on `bash_files/li
 |--------------|:--------:|:------:|:----:|:--------------:|:---------------:|:--------------:|:---------------:|:----------:|
 | Barlow Twins | ResNet18 |  1000  |  :x: |      70.90     |                 |     91.91      |                 | [:link:](https://drive.google.com/drive/folders/1hDLSApF3zSMAKco1Ck4DMjyNxhsIR2yq?usp=sharing) |
 | BYOL         | ResNet18 |  1000  |  :x: |      70.46     |                 |     91.96      |                 | [:link:](https://drive.google.com/drive/folders/1hwsEdsfsUulD2tAwa4epKK9pkSuvFv6m?usp=sharing) |
+|DeepCluster V2| ResNet18 |  1000  |  :x: |      63.61     |                 |     88.09      |                 | [:link:](https://drive.google.com/drive/folders/1gAKyMz41mvGh1BBOYdc_xu6JPSkKlWqK?usp=sharing) |
 | DINO         | ResNet18 |  1000  |  :x: |      66.76     |                 |     90.34      |                 | [:link:](https://drive.google.com/drive/folders/1TxeZi2YLprDDtbt_y5m29t4euroWr1Fy?usp=sharing) |
 | MoCo V2+     | ResNet18 |  1000  |  :x: |      69.89     |                 |     91.65      |                 | [:link:](https://drive.google.com/drive/folders/15oWNM16vO6YVYmk_yOmw2XUrFivRXam4?usp=sharing) |
 | NNCLR        | ResNet18 |  1000  |  :x: |      69.62     |                 |     91.52      |                 | [:link:](https://drive.google.com/drive/folders/1Dz72o0-5hugYPW1kCCQDBb0Xi3kzMLzu?usp=sharing) |
@@ -142,8 +150,10 @@ After that, for offline linear evaluation, follow the examples on `bash_files/li
 | Method                  | Backbone | Epochs |        Dali        | Acc@1 (online) | Acc@1 (offline) | Acc@5 (online) | Acc@5 (offline) | Checkpoint |
 |-------------------------|:--------:|:------:|:------------------:|:--------------:|:---------------:|:--------------:|:---------------:|:----------:|
 | Barlow Twins :rocket:   | ResNet18 |   400  | :heavy_check_mark: |      80.38     |     80.16       |      95.28     |      95.14      | [:link:](https://drive.google.com/drive/folders/1rj8RbER9E71mBlCHIZEIhKPUFn437D5O?usp=sharing) |
-| BYOL         :rocket:   | ResNet18 |   400  | :heavy_check_mark: |      79.76     |     80.16       |      94.80     |      95.14      | [:link:](https://drive.google.com/drive/folders/1riOLjMawD_znO4HYj8LBN2e1X4jXpDE1?usp=sharing) |
+| BYOL         :rocket:   | ResNet18 |   400  | :heavy_check_mark: |      80.16     |     80.32       |      95.02     |      94.94      | [:link:](https://drive.google.com/drive/folders/1riOLjMawD_znO4HYj8LBN2e1X4jXpDE1?usp=sharing) |
+| DeepCluster V2          | ResNet18 |   400  |         :x:        |      75.36     |     75.4        |      93.22     |      93.10      | [:link:](https://drive.google.com/drive/folders/1d5jPuavrQ7lMlQZn5m2KnN5sPMGhHFo8?usp=sharing) |
 | DINO                    | ResNet18 |   400  | :heavy_check_mark: |      74.84     |     74.92       |      92.92     |      92.78      | [:link:](https://drive.google.com/drive/folders/1NtVvRj-tQJvrMxRlMtCJSAecQnYZYkqs?usp=sharing) |
+| DINO         :sleepy:   | ViT Tiny |   400  |         :x:        |      63.04     |      TODO       |      87.72     |      TODO       | [:link:](https://drive.google.com/drive/folders/16AfsM-UpKky43kdSMlqj4XRe69pRdJLc?usp=sharing) |
 | MoCo V2+     :rocket:   | ResNet18 |   400  | :heavy_check_mark: |      78.20     |     79.28       |      95.50     |      95.18      | [:link:](https://drive.google.com/drive/folders/1ItYBtMJ23Yh-Rhrvwjm4w1waFfUGSoKX?usp=sharing) |
 | NNCLR        :rocket:   | ResNet18 |   400  | :heavy_check_mark: |      79.80     |     80.16       |      95.28     |      95.30      | [:link:](https://drive.google.com/drive/folders/1QMkq8w3UsdcZmoNUIUPgfSCAZl_LSNjZ?usp=sharing) |
 | ReSSL                   | ResNet18 |   400  | :heavy_check_mark: |      76.92     |     78.48       |      94.20     |      94.24      | [:link:](https://drive.google.com/drive/folders/1urWIFACLont4GAduis6l0jcEbl080c9U?usp=sharing) |
@@ -155,12 +165,15 @@ After that, for offline linear evaluation, follow the examples on `bash_files/li
 
 :rocket: methods where hyperparameters were heavily tuned.
 
+:sleepy: ViT is very compute intensive and unstable, so we are slowly running larger architectures and with a larger batch size. Atm, total batch size is 128 and we needed to use float32 precision. If you want to contribute by running it, let us know!
+
 ### ImageNet
 
 | Method       | Backbone | Epochs |        Dali        | Acc@1 (online) | Acc@1 (offline) | Acc@5 (online) | Acc@5 (offline) | Checkpoint |
 |--------------|:--------:|:------:|:------------------:|:--------------:|:---------------:|:--------------:|:---------------:|:----------:|
 | Barlow Twins | ResNet50 |   100  | :heavy_check_mark: |                |                 |                |                 |            |
 | BYOL         | ResNet50 |   100  | :heavy_check_mark: |      68.63     |      68.37      |      88.80     |       88.66     | [:link:](https://drive.google.com/drive/folders/1-UXo-MttdrqiEQXfV4Duc93fA3mIdsha?usp=sharing) |
+|DeepCluster V2| ResNet50 |   100  | :heavy_check_mark: |                |                 |                |                 |            |
 | DINO         | ResNet50 |   100  | :heavy_check_mark: |                |                 |                |                 |            |
 | MoCo V2+     | ResNet50 |   100  | :heavy_check_mark: |                |                 |                |                 |            |
 | NNCLR        | ResNet50 |   100  | :heavy_check_mark: |                |                 |                |                 |            |
@@ -190,12 +203,15 @@ We report the training efficiency of some methods using a ResNet18 with and with
 ---
 
 ## Citation
-If you use solo-learn, please cite our preprint:
+If you use solo-learn, please cite our [preprint](https://arxiv.org/abs/2108.01775v1):
 ```
-@misc{turrisi2021solo,
-  author =       {Victor G. Turrisi da Costa and Enrico Fini and Moin Nabi and Nicu Sebe and Elisa Ricci},
-  title =        {solo-learn: A Library of Self-supervised Methods for Visual Representation Learning},
-  howpublished = {\url{https://github.com/vturrisi/solo-learn}},
-  year =         {2021}
+@misc{turrisi2021sololearn,
+      title={Solo-learn: A Library of Self-supervised Methods for Visual Representation Learning}, 
+      author={Victor G. Turrisi da Costa and Enrico Fini and Moin Nabi and Nicu Sebe and Elisa Ricci},
+      year={2021},
+      eprint={2108.01775},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={\url{https://github.com/vturrisi/solo-learn}},
 }
 ```

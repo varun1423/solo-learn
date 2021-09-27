@@ -1,3 +1,22 @@
+# Copyright 2021 solo-learn development team.
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy of
+# this software and associated documentation files (the "Software"), to deal in
+# the Software without restriction, including without limitation the rights to use,
+# copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the
+# Software, and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all copies
+# or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+# PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+# FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+# OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
+
 from argparse import ArgumentParser
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -6,6 +25,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
+from solo.methods.base import BaseMethod
 from solo.utils.lars import LARSWrapper
 from solo.utils.metrics import accuracy_at_k, weighted_mean
 from torch.optim.lr_scheduler import (
@@ -20,7 +40,7 @@ class LinearModel(pl.LightningModule):
     def __init__(
         self,
         backbone: nn.Module,
-        n_classes: int,
+        num_classes: int,
         max_epochs: int,
         batch_size: int,
         optimizer: str,
@@ -37,7 +57,7 @@ class LinearModel(pl.LightningModule):
 
         Args:
             backbone (nn.Module): backbone architecture for feature extraction.
-            n_classes (int): number of classes in the dataset.
+            num_classes (int): number of classes in the dataset.
             max_epochs (int): total number of epochs.
             batch_size (int): batch size.
             optimizer (str): optimizer to use.
@@ -55,7 +75,11 @@ class LinearModel(pl.LightningModule):
         super().__init__()
 
         self.backbone = backbone
-        self.classifier = nn.Linear(self.backbone.inplanes, n_classes)  # type: ignore
+        if hasattr(self.backbone, "inplanes"):
+            features_dim = self.backbone.inplanes
+        else:
+            features_dim = self.backbone.num_features
+        self.classifier = nn.Linear(features_dim, num_classes)  # type: ignore
 
         # training related
         self.max_epochs = max_epochs
@@ -90,10 +114,9 @@ class LinearModel(pl.LightningModule):
         parser = parent_parser.add_argument_group("linear")
 
         # encoder args
-        SUPPORTED_NETWORKS = ["resnet18", "resnet50"]
-
-        parser.add_argument("--encoder", choices=SUPPORTED_NETWORKS, type=str)
-        parser.add_argument("--zero_init_residual", action="store_true")
+        parser.add_argument("--encoder", choices=BaseMethod._SUPPORTED_ENCODERS, type=str)
+        # for ViT
+        parser.add_argument("--patch_size", type=int, default=16)
 
         # general train
         parser.add_argument("--batch_size", type=int, default=128)

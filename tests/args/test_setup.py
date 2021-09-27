@@ -1,3 +1,22 @@
+# Copyright 2021 solo-learn development team.
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy of
+# this software and associated documentation files (the "Software"), to deal in
+# the Software without restriction, including without limitation the rights to use,
+# copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the
+# Software, and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all copies
+# or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+# PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+# FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+# OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
+
 import argparse
 import os
 import subprocess
@@ -163,6 +182,7 @@ def test_setup_linear():
 
 def test_additional_setup_pretrain():
     args = {
+        "encoder": "resnet18",
         "dataset": "imagenet100",
         "multicrop": False,
         "brightness": [0.4],
@@ -173,24 +193,27 @@ def test_additional_setup_pretrain():
         "solarization_prob": [0.2, 0.1],
         "min_scale": [0.08],
         "size": [224],
-        "n_crops": 2,
+        "num_crops": 2,
         "dali": True,
         "optimizer": "sgd",
         "gpus": "0,1",
         "lr": 0.1,
         "batch_size": 128,
+        "zero_init_residual": False,
+        "patch_size": 16,
     }
     args = argparse.Namespace(**args)
 
     additional_setup_pretrain(args)
 
-    assert args.cifar is False
+    assert args.backbone_args["cifar"] is False
     assert "momentum" in args.extra_optimizer_args
     assert isinstance(args.gpus, list)
     assert "transform_kwargs" in args
 
     # - asymmetric - multicrop
     args = {
+        "encoder": "resnet18",
         "dataset": "imagenet100",
         "multicrop": False,
         "brightness": [0.4],
@@ -201,24 +224,27 @@ def test_additional_setup_pretrain():
         "solarization_prob": [0.5],
         "min_scale": [0.08],
         "size": [224],
-        "n_crops": 2,
+        "num_crops": 2,
         "dali": True,
         "optimizer": "sgd",
         "gpus": "0,1",
         "lr": 0.1,
         "batch_size": 128,
+        "zero_init_residual": False,
+        "patch_size": 16,
     }
     args = argparse.Namespace(**args)
 
     additional_setup_pretrain(args)
 
-    assert args.cifar is False
+    assert args.backbone_args["cifar"] is False
     assert "momentum" in args.extra_optimizer_args
     assert isinstance(args.gpus, list)
     assert "transform_kwargs" in args
 
     # + multicrop
     args = {
+        "encoder": "resnet18",
         "dataset": "imagenet100",
         "multicrop": True,
         "brightness": [0.4],
@@ -229,24 +255,27 @@ def test_additional_setup_pretrain():
         "solarization_prob": [0.5],
         "min_scale": [0.08],
         "size": [224],
-        "n_crops": 2,
+        "num_crops": 2,
         "dali": True,
         "optimizer": "sgd",
         "gpus": "0,1",
         "lr": 0.1,
         "batch_size": 128,
+        "zero_init_residual": False,
+        "patch_size": 16,
     }
     args = argparse.Namespace(**args)
 
     additional_setup_pretrain(args)
 
-    assert args.cifar is False
+    assert args.backbone_args["cifar"] is False
     assert "momentum" in args.extra_optimizer_args
     assert isinstance(args.gpus, list)
     assert "transform_kwargs" in args
 
     # check for different gpu syntax
     args = {
+        "encoder": "resnet18",
         "dataset": "imagenet100",
         "multicrop": False,
         "brightness": [0.4],
@@ -257,18 +286,20 @@ def test_additional_setup_pretrain():
         "solarization_prob": [0.5, 0.3],
         "min_scale": [0.08],
         "size": [224],
-        "n_crops": 2,
+        "num_crops": 2,
         "dali": True,
         "optimizer": "sgd",
         "gpus": 0,
         "lr": 0.1,
         "batch_size": 128,
+        "zero_init_residual": False,
+        "patch_size": 16,
     }
     args = argparse.Namespace(**args)
 
     additional_setup_pretrain(args)
 
-    assert args.cifar is False
+    assert args.backbone_args["cifar"] is False
     assert "momentum" in args.extra_optimizer_args
     assert isinstance(args.gpus, list)
     assert "transform_kwargs" in args
@@ -276,34 +307,40 @@ def test_additional_setup_pretrain():
 
 def test_additional_setup_linear():
     args = {
+        "encoder": "resnet18",
         "dataset": "imagenet100",
         "dali": True,
         "optimizer": "sgd",
         "gpus": "0,1",
         "lr": 0.1,
         "batch_size": 128,
+        "zero_init_residual": False,
+        "patch_size": 16,
     }
     args = argparse.Namespace(**args)
 
     additional_setup_linear(args)
 
-    assert args.cifar is False
+    assert args.backbone_args["cifar"] is False
     assert "momentum" in args.extra_optimizer_args
     assert isinstance(args.gpus, list)
 
     # check for different gpu syntax
     args = {
+        "encoder": "resnet18",
         "dataset": "imagenet100",
         "dali": True,
         "optimizer": "sgd",
         "gpus": 0,
         "lr": 0.1,
         "batch_size": 128,
+        "zero_init_residual": False,
+        "patch_size": 16,
     }
     args = argparse.Namespace(**args)
 
     additional_setup_linear(args)
 
-    assert args.cifar is False
+    assert args.backbone_args["cifar"] is False
     assert "momentum" in args.extra_optimizer_args
     assert isinstance(args.gpus, list)

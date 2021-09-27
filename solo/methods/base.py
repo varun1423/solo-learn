@@ -1,3 +1,22 @@
+# Copyright 2021 solo-learn development team.
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy of
+# this software and associated documentation files (the "Software"), to deal in
+# the Software without restriction, including without limitation the rights to use,
+# copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the
+# Software, and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all copies
+# or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+# PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+# FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+# OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
+
 from argparse import ArgumentParser
 from functools import partial
 from typing import Any, Callable, Dict, List, Sequence, Tuple
@@ -10,6 +29,7 @@ from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 from solo.utils.lars import LARSWrapper
 from solo.utils.metrics import accuracy_at_k, weighted_mean
 from solo.utils.momentum import MomentumUpdater, initialize_momentum_params
+from solo.utils.knn import WeightedKNNClassifier
 from torch.optim.lr_scheduler import CosineAnnealingLR, MultiStepLR
 
 
@@ -22,13 +42,26 @@ def static_lr(
     return lrs
 
 
-class BaseModel(pl.LightningModule):
+class BaseMethod(pl.LightningModule):
+
+    _SUPPORTED_ENCODERS = [
+        "resnet18",
+        "resnet50",
+        "vit_tiny",
+        "vit_small",
+        "vit_base",
+        "vit_large",
+        "swin_tiny",
+        "swin_small",
+        "swin_base",
+        "swin_large",
+    ]
+
     def __init__(
         self,
         encoder: str,
-        n_classes: int,
-        cifar: bool,
-        zero_init_residual: bool,
+        num_classes: int,
+        backbone_args: dict,
         max_epochs: int,
         batch_size: int,
         optimizer: str,
@@ -44,11 +77,13 @@ class BaseModel(pl.LightningModule):
         warmup_start_lr: float,
         warmup_epochs: float,
         multicrop: bool,
-        n_crops: int,
-        n_small_crops: int,
+        num_crops: int,
+        num_small_crops: int,
         eta_lars: float = 1e-3,
         grad_clip_lars: bool = False,
         lr_decay_steps: Sequence = None,
+        disable_knn_eval: bool = True,
+        knn_k: int = 20,
         **kwargs,
     ):
         """Base model that implements all basic operations for all self-supervised methods.
@@ -58,9 +93,14 @@ class BaseModel(pl.LightningModule):
 
         Args:
             encoder (str): architecture of the base encoder.
-            n_classes (int): number of classes.
-            cifar (bool): flag indicating if cifar is being used.
-            zero_init_residual (bool): change the initialization of the resnet encoder.
+            num_classes (int): number of classes.
+            backbone_params (dict): dict containing extra backbone args, namely:
+                #! optional, if it's not present, it is considered as False
+                cifar (bool): flag indicating if cifar is being used.
+                #! only for resnet
+                zero_init_residual (bool): change the initialization of the resnet encoder.
+                #! only for vit
+                patch_size (int): size of the patches for ViT.
             max_epochs (int): number of training epochs.
             batch_size (int): number of samples in the batch.
             optimizer (str): name of the optimizer.
@@ -77,22 +117,42 @@ class BaseModel(pl.LightningModule):
             warmup_start_lr (float): initial learning rate for warmup scheduler.
             warmup_epochs (float): number of warmup epochs.
             multicrop (bool): flag indicating if multi-resolution crop is being used.
-            n_crops (int): number of big crops
-            n_small_crops (int): number of small crops (will be set to 0 if multicrop is False).
+            num_crops (int): number of big crops
+            num_small_crops (int): number of small crops (will be set to 0 if multicrop is False).
             eta_lars (float): eta parameter for lars.
             grad_clip_lars (bool): whether to clip the gradients in lars.
             lr_decay_steps (Sequence, optional): steps to decay the learning rate if scheduler is
                 step. Defaults to None.
+            disable_knn_eval (bool): disables online knn evaluation while training.
+            knn_k (int): the number of neighbors to use for knn.
+
+        .. note::
+            When using distributed data parallel, the batch size and the number of workers are
+            specified on a per process basis. Therefore, the total batch size (number of workers)
+            is calculated as the product of the number of GPUs with the batch size (number of
+            workers).
+
+        .. note::
+            The learning rate (base, min and warmup) is automatically scaled linearly based on the
+            batch size and gradient accumulation.
+
+        .. note::
+            For CIFAR10/100, the first convolutional and maxpooling layers of the ResNet encoder
+            are slightly adjusted to handle lower resolution images (32x32 instead of 224x224).
+
+        .. note::
+            If multicrop is activated, the number of small crops must be greater than zero. When
+            multicrop is deactivated (default) the number of small crops is ignored.
+
         """
 
         super().__init__()
 
-        # back-bone related
-        self.cifar = cifar
-        self.zero_init_residual = zero_init_residual
+        # resnet backbone related
+        self.backbone_args = backbone_args
 
         # training related
-        self.n_classes = n_classes
+        self.num_classes = num_classes
         self.max_epochs = max_epochs
         self.batch_size = batch_size
         self.optimizer = optimizer
@@ -109,16 +169,18 @@ class BaseModel(pl.LightningModule):
         self.warmup_start_lr = warmup_start_lr
         self.warmup_epochs = warmup_epochs
         self.multicrop = multicrop
-        self.n_crops = n_crops
-        self.n_small_crops = n_small_crops
+        self.num_crops = num_crops
+        self.num_small_crops = num_small_crops
         self.eta_lars = eta_lars
         self.grad_clip_lars = grad_clip_lars
+        self.disable_knn_eval = disable_knn_eval
+        self.knn_k = knn_k
 
         # sanity checks on multicrop
         if self.multicrop:
-            assert n_small_crops > 0
+            assert num_small_crops > 0
         else:
-            self.n_small_crops = 0
+            self.num_small_crops = 0
 
         # all the other parameters
         self.extra_args = kwargs
@@ -129,22 +191,58 @@ class BaseModel(pl.LightningModule):
         self.min_lr = self.min_lr * self.accumulate_grad_batches
         self.warmup_start_lr = self.warmup_start_lr * self.accumulate_grad_batches
 
-        assert encoder in ["resnet18", "resnet50"]
+        assert encoder in BaseMethod._SUPPORTED_ENCODERS
+        from solo.utils.backbones import (
+            swin_base,
+            swin_large,
+            swin_small,
+            swin_tiny,
+            vit_base,
+            vit_large,
+            vit_small,
+            vit_tiny,
+        )
         from torchvision.models import resnet18, resnet50
 
+        self.base_model = {
+            "resnet18": resnet18,
+            "resnet50": resnet50,
+            "vit_tiny": vit_tiny,
+            "vit_small": vit_small,
+            "vit_base": vit_base,
+            "vit_large": vit_large,
+            "swin_tiny": swin_tiny,
+            "swin_small": swin_small,
+            "swin_base": swin_base,
+            "swin_large": swin_large,
+        }[encoder]
+
         self.encoder_name = encoder
-        self.base_model = {"resnet18": resnet18, "resnet50": resnet50}[encoder]
 
         # initialize encoder
-        self.encoder = self.base_model(zero_init_residual=zero_init_residual)
-        self.features_size = self.encoder.inplanes
-        # remove fc layer
-        self.encoder.fc = nn.Identity()
-        if cifar:
-            self.encoder.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=2, bias=False)
-            self.encoder.maxpool = nn.Identity()
+        kwargs = self.backbone_args.copy()
+        cifar = kwargs.pop("cifar", False)
+        # swin specific
+        if "swin" in self.encoder_name and cifar:
+            kwargs["window_size"] = 4
 
-        self.classifier = nn.Linear(self.features_size, n_classes)
+        self.encoder = self.base_model(**kwargs)
+        if "resnet" in self.encoder_name:
+            self.features_dim = self.encoder.inplanes
+            # remove fc layer
+            self.encoder.fc = nn.Identity()
+            if cifar:
+                self.encoder.conv1 = nn.Conv2d(
+                    3, 64, kernel_size=3, stride=1, padding=2, bias=False
+                )
+                self.encoder.maxpool = nn.Identity()
+        else:
+            self.features_dim = self.encoder.num_features
+
+        self.classifier = nn.Linear(self.features_dim, num_classes)
+
+        if not self.disable_knn_eval:
+            self.knn = WeightedKNNClassifier(k=self.knn_k, distance_fx="euclidean")
 
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
@@ -161,10 +259,13 @@ class BaseModel(pl.LightningModule):
         parser = parent_parser.add_argument_group("base")
 
         # encoder args
-        SUPPORTED_NETWORKS = ["resnet18", "resnet50"]
+        SUPPORTED_ENCODERS = BaseMethod._SUPPORTED_ENCODERS
 
-        parser.add_argument("--encoder", choices=SUPPORTED_NETWORKS, type=str)
+        parser.add_argument("--encoder", choices=SUPPORTED_ENCODERS, type=str)
+        # extra args for resnet
         parser.add_argument("--zero_init_residual", action="store_true")
+        # extra args for ViT
+        parser.add_argument("--patch_size", type=int, default=16)
 
         # general train
         parser.add_argument("--batch_size", type=int, default=128)
@@ -181,7 +282,7 @@ class BaseModel(pl.LightningModule):
         parser.add_argument("--offline", action="store_true")
 
         # optimizer
-        SUPPORTED_OPTIMIZERS = ["sgd", "adam"]
+        SUPPORTED_OPTIMIZERS = ["sgd", "adam", "adamw"]
 
         parser.add_argument("--optimizer", choices=SUPPORTED_OPTIMIZERS, type=str, required=True)
         parser.add_argument("--lars", action="store_true")
@@ -204,6 +305,15 @@ class BaseModel(pl.LightningModule):
         parser.add_argument("--min_lr", default=0.0, type=float)
         parser.add_argument("--warmup_start_lr", default=0.003, type=float)
         parser.add_argument("--warmup_epochs", default=10, type=int)
+
+        # DALI only
+        # uses sample indexes as labels and then gets the labels from a lookup table
+        # this may use more CPU memory, so just use when needed.
+        parser.add_argument("--encode_indexes_into_labels", action="store_true")
+
+        # online knn eval
+        parser.add_argument("--disable_knn_eval", action="store_true")
+        parser.add_argument("--knn_k", default=20, type=int)
 
         return parent_parser
 
@@ -243,8 +353,10 @@ class BaseModel(pl.LightningModule):
             optimizer = torch.optim.SGD
         elif self.optimizer == "adam":
             optimizer = torch.optim.Adam
+        elif self.optimizer == "adamw":
+            optimizer = torch.optim.AdamW
         else:
-            raise ValueError(f"{self.optimizer} not in (sgd, adam)")
+            raise ValueError(f"{self.optimizer} not in (sgd, adam, adamw)")
 
         # create optimizer
         optimizer = optimizer(
@@ -255,6 +367,7 @@ class BaseModel(pl.LightningModule):
         )
         # optionally wrap with lars
         if self.lars:
+            assert self.optimizer == "sgd", "LARS is only compatible with SGD."
             optimizer = LARSWrapper(
                 optimizer,
                 eta=self.eta_lars,
@@ -291,12 +404,12 @@ class BaseModel(pl.LightningModule):
 
             return [optimizer], [scheduler]
 
-    def forward(self, *args, **kwargs):
+    def forward(self, *args, **kwargs) -> Dict:
         """Dummy forward, calls base forward."""
 
-        return self._base_forward(*args, **kwargs)
+        return self.base_forward(*args, **kwargs)
 
-    def _base_forward(self, X: torch.Tensor) -> Dict:
+    def base_forward(self, X: torch.Tensor) -> Dict:
         """Basic forward that allows children classes to override forward().
 
         Args:
@@ -322,19 +435,15 @@ class BaseModel(pl.LightningModule):
             Dict: dict containing the classification loss, logits, features, acc@1 and acc@5
         """
 
-        out = self._base_forward(X)
-        logits, feats = out["logits"], out["feats"]
+        out = self.base_forward(X)
+        logits = out["logits"]
+
         loss = F.cross_entropy(logits, targets, ignore_index=-1)
         # handle when the number of classes is smaller than 5
         top_k_max = min(5, logits.size(1))
         acc1, acc5 = accuracy_at_k(logits, targets, top_k=(1, top_k_max))
-        return {
-            "loss": loss,
-            "logits": logits,
-            "feats": feats,
-            "acc1": acc1,
-            "acc5": acc5,
-        }
+
+        return {**out, "loss": loss, "acc1": acc1, "acc5": acc5}
 
     def training_step(self, batch: List[Any], batch_idx: int) -> Dict[str, Any]:
         """Training step for pytorch lightning. It does all the shared operations, such as
@@ -342,7 +451,7 @@ class BaseModel(pl.LightningModule):
 
         Args:
             batch (List[Any]): a batch of data in the format of [img_indexes, [X], Y], where
-                [X] is a list of size self.n_crops containing batches of images
+                [X] is a list of size self.num_crops containing batches of images
             batch_idx (int): index of the batch
 
         Returns:
@@ -350,33 +459,38 @@ class BaseModel(pl.LightningModule):
         """
 
         _, X, targets = batch
+
         X = [X] if isinstance(X, torch.Tensor) else X
 
         # check that we received the desired number of crops
-        assert len(X) == self.n_crops + self.n_small_crops
+        assert len(X) == self.num_crops + self.num_small_crops
 
-        outs = [self._shared_step(x, targets) for x in X[: self.n_crops]]
-
-        # collect data
-        logits = [out["logits"] for out in outs]
-        feats = [out["feats"] for out in outs]
-
-        # loss and stats
-        loss = sum(out["loss"] for out in outs) / self.n_crops
-        acc1 = sum(out["acc1"] for out in outs) / self.n_crops
-        acc5 = sum(out["acc5"] for out in outs) / self.n_crops
+        outs = [self._shared_step(x, targets) for x in X[: self.num_crops]]
+        outs = {k: [out[k] for out in outs] for k in outs[0].keys()}
 
         if self.multicrop:
-            feats.extend([self.encoder(x) for x in X[self.n_crops :]])
+            outs["feats"].extend([self.encoder(x) for x in X[self.num_crops :]])
+
+        # loss and stats
+        outs["loss"] = sum(outs["loss"]) / self.num_crops
+        outs["acc1"] = sum(outs["acc1"]) / self.num_crops
+        outs["acc5"] = sum(outs["acc5"]) / self.num_crops
 
         metrics = {
-            "train_acc1": acc1,
-            "train_acc5": acc5,
-            "train_class_loss": loss,
+            "train_class_loss": outs["loss"],
+            "train_acc1": outs["acc1"],
+            "train_acc5": outs["acc5"],
         }
+
         self.log_dict(metrics, on_epoch=True, sync_dist=True)
 
-        return {"loss": loss, "feats": feats, "logits": logits}
+        if not self.disable_knn_eval:
+            self.knn(
+                train_features=torch.cat(outs["feats"][: self.num_crops]).detach(),
+                train_targets=targets.repeat(self.num_crops),
+            )
+
+        return outs
 
     def validation_step(self, batch: List[torch.Tensor], batch_idx: int) -> Dict[str, Any]:
         """Validation step for pytorch lightning. It does all the shared operations, such as
@@ -396,6 +510,9 @@ class BaseModel(pl.LightningModule):
         batch_size = targets.size(0)
 
         out = self._shared_step(X, targets)
+
+        if not self.disable_knn_eval and not self.trainer.sanity_checking:
+            self.knn(test_features=out.pop("feats").detach(), test_targets=targets)
 
         metrics = {
             "batch_size": batch_size,
@@ -419,10 +536,15 @@ class BaseModel(pl.LightningModule):
         val_acc5 = weighted_mean(outs, "val_acc5", "batch_size")
 
         log = {"val_loss": val_loss, "val_acc1": val_acc1, "val_acc5": val_acc5}
+
+        if not self.disable_knn_eval and not self.trainer.sanity_checking:
+            val_knn_acc1, val_knn_acc5 = self.knn.compute()
+            log.update({"val_knn_acc1": val_knn_acc1, "val_knn_acc5": val_knn_acc5})
+
         self.log_dict(log, sync_dist=True)
 
 
-class BaseMomentumModel(BaseModel):
+class BaseMomentumMethod(BaseMethod):
     def __init__(
         self,
         base_tau_momentum: float,
@@ -448,18 +570,30 @@ class BaseMomentumModel(BaseModel):
         super().__init__(**kwargs)
 
         # momentum encoder
-        self.momentum_encoder = self.base_model(zero_init_residual=self.zero_init_residual)
-        self.momentum_encoder.fc = nn.Identity()
-        if self.cifar:
-            self.momentum_encoder.conv1 = nn.Conv2d(
-                3, 64, kernel_size=3, stride=1, padding=2, bias=False
-            )
-            self.momentum_encoder.maxpool = nn.Identity()
+        kwargs = self.backbone_args.copy()
+        cifar = kwargs.pop("cifar", False)
+        # swin specific
+        if "swin" in self.encoder_name and cifar:
+            kwargs["window_size"] = 4
+
+        self.momentum_encoder = self.base_model(**kwargs)
+        if "resnet" in self.encoder_name:
+            self.features_dim = self.momentum_encoder.inplanes
+            # remove fc layer
+            self.momentum_encoder.fc = nn.Identity()
+            if cifar:
+                self.momentum_encoder.conv1 = nn.Conv2d(
+                    3, 64, kernel_size=3, stride=1, padding=2, bias=False
+                )
+                self.momentum_encoder.maxpool = nn.Identity()
+        else:
+            self.features_dim = self.momentum_encoder.num_features
+
         initialize_momentum_params(self.encoder, self.momentum_encoder)
 
         # momentum classifier
         if momentum_classifier:
-            self.momentum_classifier: Any = nn.Linear(self.features_size, self.n_classes)
+            self.momentum_classifier: Any = nn.Linear(self.features_dim, self.num_classes)
         else:
             self.momentum_classifier = None
 
@@ -509,7 +643,7 @@ class BaseMomentumModel(BaseModel):
             ArgumentParser: same as the argument, used to avoid errors.
         """
 
-        parent_parser = super(BaseMomentumModel, BaseMomentumModel).add_model_specific_args(
+        parent_parser = super(BaseMomentumMethod, BaseMomentumMethod).add_model_specific_args(
             parent_parser
         )
         parser = parent_parser.add_argument_group("base")
@@ -522,8 +656,20 @@ class BaseMomentumModel(BaseModel):
         return parent_parser
 
     def on_train_start(self):
-        """Resents the step counter at the beginning of training."""
+        """Resets the step counter at the beginning of training."""
         self.last_step = 0
+
+    @torch.no_grad()
+    def base_momentum_forward(self, X: torch.Tensor) -> Dict:
+        """Momentum forward that allows children classes to override how the momentum encoder is used.
+        Args:
+            X (torch.Tensor): batch of images in tensor format.
+        Returns:
+            Dict: dict of logits and features.
+        """
+
+        feats = self.momentum_encoder(X)
+        return {"feats": feats}
 
     def _shared_step_momentum(self, X: torch.Tensor, targets: torch.Tensor) -> Dict[str, Any]:
         """Forwards a batch of images X in the momentum encoder and optionally computes the
@@ -539,12 +685,12 @@ class BaseMomentumModel(BaseModel):
                 acc@5 of the momentum encoder / classifier.
         """
 
-        with torch.no_grad():
-            feats = self.momentum_encoder(X)
-        out = {"feats": feats}
+        out = self.base_momentum_forward(X)
 
         if self.momentum_classifier is not None:
+            feats = out["feats"]
             logits = self.momentum_classifier(feats)
+
             loss = F.cross_entropy(logits, targets, ignore_index=-1)
             acc1, acc5 = accuracy_at_k(logits, targets, top_k=(1, 5))
             out.update({"logits": logits, "loss": loss, "acc1": acc1, "acc5": acc5})
@@ -558,7 +704,7 @@ class BaseMomentumModel(BaseModel):
 
         Args:
             batch (List[Any]): a batch of data in the format of [img_indexes, [X], Y], where
-                [X] is a list of size self.n_crops containing batches of images.
+                [X] is a list of size self.num_crops containing batches of images.
             batch_idx (int): index of the batch.
 
         Returns:
@@ -566,39 +712,36 @@ class BaseMomentumModel(BaseModel):
                 loss and logits of the momentum classifier.
         """
 
-        parent_outs = super().training_step(batch, batch_idx)
+        outs = super().training_step(batch, batch_idx)
 
         _, X, targets = batch
         X = [X] if isinstance(X, torch.Tensor) else X
 
         # remove small crops
-        X = X[: self.n_crops]
+        X = X[: self.num_crops]
 
-        outs = [self._shared_step_momentum(x, targets) for x in X]
-
-        # collect features
-        parent_outs["feats_momentum"] = [out["feats"] for out in outs]
+        momentum_outs = [self._shared_step_momentum(x, targets) for x in X]
+        momentum_outs = {
+            "momentum_" + k: [out[k] for out in momentum_outs] for k in momentum_outs[0].keys()
+        }
 
         if self.momentum_classifier is not None:
-            # collect logits
-            logits = [out["logits"] for out in outs]
-
             # momentum loss and stats
-            loss = sum(out["loss"] for out in outs) / self.n_crops
-            acc1 = sum(out["acc1"] for out in outs) / self.n_crops
-            acc5 = sum(out["acc5"] for out in outs) / self.n_crops
+            momentum_outs["momentum_loss"] = sum(momentum_outs["momentum_loss"]) / self.num_crops
+            momentum_outs["momentum_acc1"] = sum(momentum_outs["momentum_acc1"]) / self.num_crops
+            momentum_outs["momentum_acc5"] = sum(momentum_outs["momentum_acc5"]) / self.num_crops
 
             metrics = {
-                "train_momentum_acc1": acc1,
-                "train_momentum_acc5": acc5,
-                "train_momentum_class_loss": loss,
+                "train_momentum_class_loss": momentum_outs["momentum_loss"],
+                "train_momentum_acc1": momentum_outs["momentum_acc1"],
+                "train_momentum_acc5": momentum_outs["momentum_acc5"],
             }
             self.log_dict(metrics, on_epoch=True, sync_dist=True)
 
-            parent_outs["loss"] += loss
-            parent_outs["logits_momentum"] = logits
+            # adds the momentum classifier loss together with the general loss
+            outs["loss"] += momentum_outs["momentum_loss"]
 
-        return parent_outs
+        return {**outs, **momentum_outs}
 
     def on_train_batch_end(
         self, outputs: Dict[str, Any], batch: Sequence[Any], batch_idx: int, dataloader_idx: int
@@ -609,7 +752,7 @@ class BaseMomentumModel(BaseModel):
         Args:
             outputs (Dict[str, Any]): the outputs of the training step.
             batch (Sequence[Any]): a batch of data in the format of [img_indexes, [X], Y], where
-                [X] is a list of size self.n_crops containing batches of images.
+                [X] is a list of size self.num_crops containing batches of images.
             batch_idx (int): index of the batch.
             dataloader_idx (int): index of the dataloader.
         """

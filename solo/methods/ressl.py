@@ -1,3 +1,22 @@
+# Copyright 2021 solo-learn development team.
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy of
+# this software and associated documentation files (the "Software"), to deal in
+# the Software without restriction, including without limitation the rights to use,
+# copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the
+# Software, and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all copies
+# or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+# PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+# FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+# OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
+
 import argparse
 from typing import Any, Dict, List, Sequence, Tuple
 
@@ -5,15 +24,15 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from solo.losses.ressl import ressl_loss_func
-from solo.methods.base import BaseMomentumModel
-from solo.utils.gather_layer import gather
+from solo.methods.base import BaseMomentumMethod
 from solo.utils.momentum import initialize_momentum_params
+from solo.utils.misc import gather
 
 
-class ReSSL(BaseMomentumModel):
+class ReSSL(BaseMomentumMethod):
     def __init__(
         self,
-        output_dim: int,
+        proj_output_dim: int,
         proj_hidden_dim: int,
         temperature_q: float,
         temperature_k: float,
@@ -23,7 +42,7 @@ class ReSSL(BaseMomentumModel):
         """Implements ReSSL (https://arxiv.org/abs/2107.09282v1).
 
         Args:
-            output_dim (int): number of dimensions of projected features.
+            proj_output_dim (int): number of dimensions of projected features.
             proj_hidden_dim (int): number of neurons of the hidden layers of the projector.
             pred_hidden_dim (int): number of neurons of the hidden layers of the predictor.
             temperature_q (float): temperature for the contrastive augmentations.
@@ -34,16 +53,16 @@ class ReSSL(BaseMomentumModel):
 
         # projector
         self.projector = nn.Sequential(
-            nn.Linear(self.features_size, proj_hidden_dim),
+            nn.Linear(self.features_dim, proj_hidden_dim),
             nn.ReLU(),
-            nn.Linear(proj_hidden_dim, output_dim),
+            nn.Linear(proj_hidden_dim, proj_output_dim),
         )
 
         # momentum projector
         self.momentum_projector = nn.Sequential(
-            nn.Linear(self.features_size, proj_hidden_dim),
+            nn.Linear(self.features_dim, proj_hidden_dim),
             nn.ReLU(),
-            nn.Linear(proj_hidden_dim, output_dim),
+            nn.Linear(proj_hidden_dim, proj_output_dim),
         )
         initialize_momentum_params(self.projector, self.momentum_projector)
 
@@ -52,7 +71,7 @@ class ReSSL(BaseMomentumModel):
         self.queue_size = queue_size
 
         # queue
-        self.register_buffer("queue", torch.randn(self.queue_size, output_dim))
+        self.register_buffer("queue", torch.randn(self.queue_size, proj_output_dim))
         self.queue = F.normalize(self.queue, dim=1)
         self.register_buffer("queue_ptr", torch.zeros(1, dtype=torch.long))
 
@@ -62,7 +81,7 @@ class ReSSL(BaseMomentumModel):
         parser = parent_parser.add_argument_group("ressl")
 
         # projector
-        parser.add_argument("--output_dim", type=int, default=256)
+        parser.add_argument("--proj_output_dim", type=int, default=256)
         parser.add_argument("--proj_hidden_dim", type=int, default=2048)
 
         # queue settings
@@ -132,28 +151,28 @@ class ReSSL(BaseMomentumModel):
         q = F.normalize(self.projector(out["feats"]), dim=-1)
         return {**out, "q": q}
 
-    def training_step(self, batch: Sequence[Any], batch_idx: int) -> Dict[str, Any]:
-        """Training step for BYOL reusing BaseModel training step.
+    def training_step(self, batch: Sequence[Any], batch_idx: int) -> torch.Tensor:
+        """Training step for BYOL reusing BaseMethod training step.
 
         Args:
             batch (Sequence[Any]): a batch of data in the format of [img_indexes, [X], Y], where
-                [X] is a list of size self.n_crops containing batches of images.
+                [X] is a list of size self.num_crops containing batches of images.
             batch_idx (int): index of the batch.
 
         Returns:
-            Dict[str, Any]: total loss composed of BYOL and classification loss.
+            torch.Tensor: total loss composed of BYOL and classification loss.
         """
 
         out = super().training_step(batch, batch_idx)
         class_loss = out["loss"]
         feats1, _ = out["feats"]
-        _, feats2_momentum = out["feats_momentum"]
+        _, momentum_feats2 = out["momentum_feats"]
 
         q = self.projector(feats1)
 
         # forward momentum encoder
         with torch.no_grad():
-            k = self.momentum_projector(feats2_momentum)
+            k = self.momentum_projector(momentum_feats2)
 
         q = F.normalize(q, dim=-1)
         k = F.normalize(k, dim=-1)

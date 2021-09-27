@@ -15,7 +15,7 @@ python3 ../../main_pretrain.py \
     --classifier_lr 0.1 \
     --weight_decay 1e-6 \
     --batch_size 256 \
-    --num_workers 8 \
+    --num_workers 4 \
     --brightness 0.4 \
     --contrast 0.4 \
     --saturation 0.2 \
@@ -26,8 +26,9 @@ python3 ../../main_pretrain.py \
     --entity unitn-mhug \
     --project solo-learn \
     --wandb \
+    --save_checkpoint \
     --method dino \
-    --output_dim 256 \
+    --proj_output_dim 256 \
     --proj_hidden_dim 2048 \
     --num_prototypes 4096 \
     --base_tau_momentum 0.9995 \

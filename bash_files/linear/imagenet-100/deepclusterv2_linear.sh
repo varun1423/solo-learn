@@ -1,4 +1,4 @@
-python3 ../../main_linear.py \
+python3 ../../../main_linear.py \
     --dataset imagenet100 \
     --encoder resnet18 \
     --data_dir /data/datasets \
@@ -9,14 +9,14 @@ python3 ../../main_linear.py \
     --precision 16 \
     --optimizer sgd \
     --scheduler step \
-    --lr 1.0 \
+    --lr 0.15 \
     --lr_decay_steps 60 80 \
     --weight_decay 0 \
     --batch_size 256 \
-    --num_workers 10 \
+    --num_workers 5 \
     --dali \
-    --name simclr-imagenet100-linear-eval \
-    --pretrained_feature_extractor PATH \
+    --name deepclusterv2-imagenet100-linear-eval \
+    --pretrained_feature_extractor PATH\
     --project solo-learn \
     --entity unitn-mhug \
     --wandb

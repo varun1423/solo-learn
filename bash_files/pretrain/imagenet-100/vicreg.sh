@@ -6,7 +6,7 @@ python3 ../../../main_pretrain.py \
     --val_dir imagenet-100/val \
     --max_epochs 400 \
     --gpus 0,1 \
-    --distributed_backend ddp \
+    --accelerator ddp \
     --sync_batchnorm \
     --precision 16 \
     --optimizer sgd \
@@ -18,7 +18,7 @@ python3 ../../../main_pretrain.py \
     --lr 0.3 \
     --weight_decay 1e-4 \
     --batch_size 128 \
-    --num_workers 6 \
+    --num_workers 4 \
     --dali \
     --min_scale 0.2 \
     --brightness 0.4 \
@@ -30,9 +30,10 @@ python3 ../../../main_pretrain.py \
     --entity unitn-mhug \
     --project solo-learn \
     --wandb \
+    --save_checkpoint \
     --method vicreg \
     --proj_hidden_dim 2048 \
-    --output_dim 2048 \
+    --proj_output_dim 2048 \
     --sim_loss_weight 25.0 \
     --var_loss_weight 25.0 \
     --cov_loss_weight 1.0

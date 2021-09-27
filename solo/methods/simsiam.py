@@ -1,3 +1,22 @@
+# Copyright 2021 solo-learn development team.
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy of
+# this software and associated documentation files (the "Software"), to deal in
+# the Software without restriction, including without limitation the rights to use,
+# copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the
+# Software, and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all copies
+# or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+# PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+# FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+# OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
+
 import argparse
 from typing import Any, Dict, List, Sequence
 
@@ -5,13 +24,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from solo.losses.simsiam import simsiam_loss_func
-from solo.methods.base import BaseModel
+from solo.methods.base import BaseMethod
 
 
-class SimSiam(BaseModel):
+class SimSiam(BaseMethod):
     def __init__(
         self,
-        output_dim: int,
+        proj_output_dim: int,
         proj_hidden_dim: int,
         pred_hidden_dim: int,
         **kwargs,
@@ -19,7 +38,7 @@ class SimSiam(BaseModel):
         """Implements SimSiam (https://arxiv.org/abs/2011.10566).
 
         Args:
-            output_dim (int): number of dimensions of projected features.
+            proj_output_dim (int): number of dimensions of projected features.
             proj_hidden_dim (int): number of neurons of the hidden layers of the projector.
             pred_hidden_dim (int): number of neurons of the hidden layers of the predictor.
         """
@@ -28,23 +47,23 @@ class SimSiam(BaseModel):
 
         # projector
         self.projector = nn.Sequential(
-            nn.Linear(self.features_size, proj_hidden_dim, bias=False),
+            nn.Linear(self.features_dim, proj_hidden_dim, bias=False),
             nn.BatchNorm1d(proj_hidden_dim),
             nn.ReLU(),
             nn.Linear(proj_hidden_dim, proj_hidden_dim, bias=False),
             nn.BatchNorm1d(proj_hidden_dim),
             nn.ReLU(),
-            nn.Linear(proj_hidden_dim, output_dim),
-            nn.BatchNorm1d(output_dim, affine=False),
+            nn.Linear(proj_hidden_dim, proj_output_dim),
+            nn.BatchNorm1d(proj_output_dim, affine=False),
         )
         self.projector[6].bias.requires_grad = False  # hack: not use bias as it is followed by BN
 
         # predictor
         self.predictor = nn.Sequential(
-            nn.Linear(output_dim, pred_hidden_dim, bias=False),
+            nn.Linear(proj_output_dim, pred_hidden_dim, bias=False),
             nn.BatchNorm1d(pred_hidden_dim),
             nn.ReLU(),
-            nn.Linear(pred_hidden_dim, output_dim),
+            nn.Linear(pred_hidden_dim, proj_output_dim),
         )
 
     @staticmethod
@@ -53,7 +72,7 @@ class SimSiam(BaseModel):
         parser = parent_parser.add_argument_group("simsiam")
 
         # projector
-        parser.add_argument("--output_dim", type=int, default=128)
+        parser.add_argument("--proj_output_dim", type=int, default=128)
         parser.add_argument("--proj_hidden_dim", type=int, default=2048)
 
         # predictor
@@ -91,16 +110,16 @@ class SimSiam(BaseModel):
         p = self.predictor(z)
         return {**out, "z": z, "p": p}
 
-    def training_step(self, batch: Sequence[Any], batch_idx: int) -> Dict[str, Any]:
-        """Training step for SimSiam reusing BaseModel training step.
+    def training_step(self, batch: Sequence[Any], batch_idx: int) -> torch.Tensor:
+        """Training step for SimSiam reusing BaseMethod training step.
 
         Args:
             batch (Sequence[Any]): a batch of data in the format of [img_indexes, [X], Y], where
-                [X] is a list of size self.n_crops containing batches of images
+                [X] is a list of size self.num_crops containing batches of images
             batch_idx (int): index of the batch
 
         Returns:
-            Dict[str, Any]: total loss composed of SimSiam loss and classification loss
+            torch.Tensor: total loss composed of SimSiam loss and classification loss
         """
 
         out = super().training_step(batch, batch_idx)

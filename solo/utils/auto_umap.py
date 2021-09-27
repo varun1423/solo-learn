@@ -1,5 +1,27 @@
+# Copyright 2021 solo-learn development team.
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy of
+# this software and associated documentation files (the "Software"), to deal in
+# the Software without restriction, including without limitation the rights to use,
+# copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the
+# Software, and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all copies
+# or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+# PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+# FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+# OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
+
 import math
 import os
+import random
+import string
+import time
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from typing import Optional, Union
@@ -13,7 +35,16 @@ import wandb
 from matplotlib import pyplot as plt
 from pytorch_lightning.callbacks import Callback
 
-from .gather_layer import gather
+from .misc import gather
+
+
+def random_string(letter_count=4, digit_count=4):
+    tmp_random = random.Random(time.time())
+    rand_str = "".join((tmp_random.choice(string.ascii_lowercase) for x in range(letter_count)))
+    rand_str += "".join((tmp_random.choice(string.digits) for x in range(digit_count)))
+    rand_str = list(rand_str)
+    tmp_random.shuffle(rand_str)
+    return "".join(rand_str)
 
 
 class AutoUMAP(Callback):
@@ -67,7 +98,13 @@ class AutoUMAP(Callback):
         """
 
         if trainer.logger is None:
-            version = None
+            if self.logdir.exists():
+                existing_versions = set(os.listdir(self.logdir))
+            else:
+                existing_versions = []
+            version = "offline-" + random_string()
+            while version in existing_versions:
+                version = "offline-" + random_string()
         else:
             version = str(trainer.logger.version)
         if version is not None:
@@ -123,7 +160,7 @@ class AutoUMAP(Callback):
         if trainer.is_global_zero and len(data):
             data = torch.cat(data, dim=0).numpy()
             Y = torch.cat(Y, dim=0)
-            n_classes = len(torch.unique(Y))
+            num_classes = len(torch.unique(Y))
             Y = Y.numpy()
 
             data = umap.UMAP(n_components=2).fit_transform(data)
@@ -138,7 +175,7 @@ class AutoUMAP(Callback):
                 x="feat_1",
                 y="feat_2",
                 hue="Y",
-                palette=sns.color_palette(self.color_palette, n_classes),
+                palette=sns.color_palette(self.color_palette, num_classes),
                 data=df,
                 legend="full",
                 alpha=0.3,
@@ -147,12 +184,12 @@ class AutoUMAP(Callback):
             ax.tick_params(left=False, right=False, bottom=False, top=False)
 
             # manually improve quality of imagenet umaps
-            if n_classes > 100:
+            if num_classes > 100:
                 anchor = (0.5, 1.8)
             else:
                 anchor = (0.5, 1.35)
 
-            plt.legend(loc="upper center", bbox_to_anchor=anchor, ncol=math.ceil(n_classes / 10))
+            plt.legend(loc="upper center", bbox_to_anchor=anchor, ncol=math.ceil(num_classes / 10))
             plt.tight_layout()
 
             if isinstance(trainer.logger, pl.loggers.WandbLogger):
@@ -175,5 +212,5 @@ class AutoUMAP(Callback):
         """
 
         epoch = trainer.current_epoch  # type: ignore
-        if epoch % self.frequency == 0 and not trainer.running_sanity_check:
+        if epoch % self.frequency == 0 and not trainer.sanity_checking:
             self.plot(trainer, module)

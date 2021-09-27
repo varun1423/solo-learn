@@ -6,7 +6,7 @@ python3 ../../../main_pretrain.py \
     --val_dir imagenet-100/val \
     --max_epochs 400 \
     --gpus 0,1 \
-    --distributed_backend ddp \
+    --accelerator ddp \
     --sync_batchnorm \
     --precision 16 \
     --optimizer sgd \
@@ -28,6 +28,7 @@ python3 ../../../main_pretrain.py \
     --entity unitn-mhug \
     --project solo-learn \
     --wandb \
+    --save_checkpoint \
     --method simclr \
     --temperature 0.2 \
     --proj_hidden_dim 2048
@@ -40,7 +41,7 @@ python3 ../../../main_pretrain.py \
     --val_dir imagenet-100/val \
     --max_epochs 400 \
     --gpus 0,1 \
-    --distributed_backend ddp \
+    --accelerator ddp \
     --sync_batchnorm \
     --precision 16 \
     --optimizer sgd \
@@ -58,13 +59,14 @@ python3 ../../../main_pretrain.py \
     --saturation 0.8 \
     --hue 0.2 \
     --multicrop \
-    --n_crops 2 \
-    --n_small_crops 6 \
+    --num_crops 2 \
+    --num_small_crops 6 \
     --name multicrop-simclr-400ep-imagenet100 \
     --dali \
     --entity unitn-mhug \
     --project solo-learn \
     --wandb \
+    --save_checkpoint \
     --method simclr \
     --proj_hidden_dim 2048 \
     --temperature 0.1
@@ -77,7 +79,7 @@ python3 ../../../main_pretrain.py \
     --val_dir imagenet-100/val \
     --max_epochs 400 \
     --gpus 0,1 \
-    --distributed_backend ddp \
+    --accelerator ddp \
     --sync_batchnorm \
     --precision 16 \
     --optimizer sgd \
@@ -96,13 +98,14 @@ python3 ../../../main_pretrain.py \
     --saturation 0.8 \
     --hue 0.2 \
     --multicrop \
-    --n_crops 2 \
-    --n_small_crops 6 \
+    --num_crops 2 \
+    --num_small_crops 6 \
     --name multicrop-supervised-simclr-400ep-imagenet100 \
     --dali \
     --entity unitn-mhug \
     --project solo-learn \
     --wandb \
+    --save_checkpoint \
     --method simclr \
     --temperature 0.1 \
     --proj_hidden_dim 2048 \

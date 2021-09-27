@@ -1,3 +1,22 @@
+# Copyright 2021 solo-learn development team.
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy of
+# this software and associated documentation files (the "Software"), to deal in
+# the Software without restriction, including without limitation the rights to use,
+# copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the
+# Software, and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all copies
+# or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+# PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+# FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+# OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
+
 import argparse
 from typing import Any, Dict, List, Sequence, Tuple
 
@@ -5,14 +24,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from solo.losses.byol import byol_loss_func
-from solo.methods.base import BaseMomentumModel
+from solo.methods.base import BaseMomentumMethod
 from solo.utils.momentum import initialize_momentum_params
 
 
-class BYOL(BaseMomentumModel):
+class BYOL(BaseMomentumMethod):
     def __init__(
         self,
-        output_dim: int,
+        proj_output_dim: int,
         proj_hidden_dim: int,
         pred_hidden_dim: int,
         **kwargs,
@@ -20,7 +39,7 @@ class BYOL(BaseMomentumModel):
         """Implements BYOL (https://arxiv.org/abs/2006.07733).
 
         Args:
-            output_dim (int): number of dimensions of projected features.
+            proj_output_dim (int): number of dimensions of projected features.
             proj_hidden_dim (int): number of neurons of the hidden layers of the projector.
             pred_hidden_dim (int): number of neurons of the hidden layers of the predictor.
         """
@@ -29,27 +48,27 @@ class BYOL(BaseMomentumModel):
 
         # projector
         self.projector = nn.Sequential(
-            nn.Linear(self.features_size, proj_hidden_dim),
+            nn.Linear(self.features_dim, proj_hidden_dim),
             nn.BatchNorm1d(proj_hidden_dim),
             nn.ReLU(),
-            nn.Linear(proj_hidden_dim, output_dim),
+            nn.Linear(proj_hidden_dim, proj_output_dim),
         )
 
         # momentum projector
         self.momentum_projector = nn.Sequential(
-            nn.Linear(self.features_size, proj_hidden_dim),
+            nn.Linear(self.features_dim, proj_hidden_dim),
             nn.BatchNorm1d(proj_hidden_dim),
             nn.ReLU(),
-            nn.Linear(proj_hidden_dim, output_dim),
+            nn.Linear(proj_hidden_dim, proj_output_dim),
         )
         initialize_momentum_params(self.projector, self.momentum_projector)
 
         # predictor
         self.predictor = nn.Sequential(
-            nn.Linear(output_dim, pred_hidden_dim),
+            nn.Linear(proj_output_dim, pred_hidden_dim),
             nn.BatchNorm1d(pred_hidden_dim),
             nn.ReLU(),
-            nn.Linear(pred_hidden_dim, output_dim),
+            nn.Linear(pred_hidden_dim, proj_output_dim),
         )
 
     @staticmethod
@@ -58,7 +77,7 @@ class BYOL(BaseMomentumModel):
         parser = parent_parser.add_argument_group("byol")
 
         # projector
-        parser.add_argument("--output_dim", type=int, default=256)
+        parser.add_argument("--proj_output_dim", type=int, default=256)
         parser.add_argument("--proj_hidden_dim", type=int, default=2048)
 
         # predictor
@@ -106,22 +125,22 @@ class BYOL(BaseMomentumModel):
         p = self.predictor(z)
         return {**out, "z": z, "p": p}
 
-    def training_step(self, batch: Sequence[Any], batch_idx: int) -> Dict[str, Any]:
-        """Training step for BYOL reusing BaseModel training step.
+    def training_step(self, batch: Sequence[Any], batch_idx: int) -> torch.Tensor:
+        """Training step for BYOL reusing BaseMethod training step.
 
         Args:
             batch (Sequence[Any]): a batch of data in the format of [img_indexes, [X], Y], where
-                [X] is a list of size self.n_crops containing batches of images.
+                [X] is a list of size self.num_crops containing batches of images.
             batch_idx (int): index of the batch.
 
         Returns:
-            Dict[str, Any]: total loss composed of BYOL and classification loss.
+            torch.Tensor: total loss composed of BYOL and classification loss.
         """
 
         out = super().training_step(batch, batch_idx)
         class_loss = out["loss"]
         feats1, feats2 = out["feats"]
-        feats1_momentum, feats2_momentum = out["feats_momentum"]
+        momentum_feats1, momentum_feats2 = out["momentum_feats"]
 
         z1 = self.projector(feats1)
         z2 = self.projector(feats2)
@@ -130,10 +149,10 @@ class BYOL(BaseMomentumModel):
 
         # forward momentum encoder
         with torch.no_grad():
-            z1_momentum = self.momentum_projector(feats1_momentum)
-            z2_momentum = self.momentum_projector(feats2_momentum)
+            z1_momentum = self.momentum_projector(momentum_feats1)
+            z2_momentum = self.momentum_projector(momentum_feats2)
 
-        # ------- contrastive loss -------
+        # ------- negative consine similarity loss -------
         neg_cos_sim = byol_loss_func(p1, z2_momentum) + byol_loss_func(p2, z1_momentum)
 
         # calculate std of features

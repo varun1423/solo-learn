@@ -15,19 +15,21 @@ python3 ../../../main_pretrain.py \
     --classifier_lr 0.1 \
     --weight_decay 1e-6 \
     --batch_size 256 \
-    --num_workers 3 \
+    --num_workers 4 \
     --brightness 0.8 \
     --contrast 0.8 \
     --saturation 0.8 \
     --hue 0.2 \
+    --gaussian_prob 0.0 0.0 \
     --name swav-$1 \
     --wandb \
+    --save_checkpoint \
     --project solo-learn \
     --entity unitn-mhug \
     --method swav \
     --proj_hidden_dim 2048 \
     --queue_size 3840 \
-    --output_dim 128 \
+    --proj_output_dim 128 \
     --num_prototypes 3000 \
     --epoch_queue_starts 50 \
     --freeze_prototypes_epochs 2

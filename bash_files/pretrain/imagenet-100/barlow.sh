@@ -6,7 +6,7 @@ python3 ../../../main_pretrain.py \
     --val_dir imagenet-100/val \
     --max_epochs 400 \
     --gpus 0,1 \
-    --distributed_backend ddp \
+    --accelerator ddp \
     --sync_batchnorm \
     --num_workers 4 \
     --precision 16 \
@@ -30,7 +30,8 @@ python3 ../../../main_pretrain.py \
     --entity unitn-mhug \
     --project solo-learn \
     --wandb \
+    --save_checkpoint \
+    --scale_loss 0.1 \
     --method barlow_twins \
     --proj_hidden_dim 2048 \
-    --output_dim 2048 \
-    --scale_loss 0.1
+    --proj_output_dim 2048
