@@ -23,6 +23,7 @@ python3 ../../../main_pretrain.py \
     --name aavae-$1 \
     --project solo-learn \
     --wandb \
+    --save_checkpoint \
     --method aavae \
     --output_dim 128 \
     --proj_hidden_dim 2048 \
