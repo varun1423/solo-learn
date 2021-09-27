@@ -88,7 +88,9 @@ def main():
             )
 
             val_transform = prepare_transforms_classification(args.dataset)[1]
-            transform = [val_transform, transform]
+            if not isinstance(transform, list):
+                transform = [transform]
+            transform = [val_transform, *transform]
 
         if args.debug_augmentations:
             print("Transforms:")

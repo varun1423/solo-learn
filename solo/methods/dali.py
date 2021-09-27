@@ -222,7 +222,9 @@ class PretrainABC(ABC):
 
             if original_img:
                 validation_transform = ImagenetValTransform(device=dali_device)
-                transform = [validation_transform, transform]
+                if not isinstance(transform, list):
+                    transform = [transform]
+                transform = [validation_transform, *transform]
 
             train_pipeline = PretrainPipeline(
                 data_dir / train_dir,
