@@ -17,33 +17,37 @@
 # OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-from solo.losses.barlow import barlow_loss_func
-from solo.losses.byol import byol_loss_func
-from solo.losses.deepclusterv2 import deepclusterv2_loss_func
-from solo.losses.dino import DINOLoss
-from solo.losses.moco import moco_loss_func
-from solo.losses.nnclr import nnclr_loss_func
-from solo.losses.ressl import ressl_loss_func
-from solo.losses.simclr import manual_simclr_loss_func, simclr_loss_func
-from solo.losses.simsiam import simsiam_loss_func
-from solo.losses.swav import swav_loss_func
-from solo.losses.vicreg import vicreg_loss_func
-from solo.losses.wmse import wmse_loss_func
-from solo.losses.twist import twist_loss_func
+import torch
 
-__all__ = [
-    "barlow_loss_func",
-    "byol_loss_func",
-    "deepclusterv2_loss_func",
-    "DINOLoss",
-    "moco_loss_func",
-    "nnclr_loss_func",
-    "ressl_loss_func",
-    "simclr_loss_func",
-    "manual_simclr_loss_func",
-    "simsiam_loss_func",
-    "swav_loss_func",
-    "twist_loss_func",
-    "vicreg_loss_func",
-    "wmse_loss_func",
-]
+
+def twist_loss_func(p1: torch.Tensor, p2: torch.Tensor) -> torch.Tensor:
+    """Computes TWIST's loss given batch of class logits p1 from view 1 and
+    class logits p2 from view 2.
+
+    Args:
+        p1 (torch.Tensor): NxC Tensor containing class logits from view 1.
+        p2 (torch.Tensor): NxC Tensor containing class logits from view 2.
+
+    Returns:
+        torch.Tensor: TWIST's loss.
+    """
+    eps = 1e-6
+
+    p1_softmax = p1.softmax(dim=1)
+    p1_logsoftmax = p1.log_softmax(dim=1)
+    p2_softmax = p2.softmax(dim=1)
+    p2_logsoftmax = p2.log_softmax(dim=1)
+
+    # first term
+    kl_div = (
+        (p2_softmax * p2_logsoftmax).sum(dim=1) - (p2_softmax * p1_logsoftmax).sum(dim=1)
+    ).mean()
+
+    # second term
+    mean_entropy = -(p1_softmax * (p1_logsoftmax + eps)).sum(dim=1).mean()
+
+    # third term
+    mean_prob = p1_softmax.mean(dim=0)
+    entropy_mean = -(mean_prob * (mean_prob.log() + eps)).sum()
+
+    return kl_div + mean_entropy - entropy_mean

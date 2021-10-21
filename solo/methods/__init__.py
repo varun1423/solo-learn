@@ -31,6 +31,7 @@ from solo.methods.ressl import ReSSL
 from solo.methods.simclr import SimCLR
 from solo.methods.simsiam import SimSiam
 from solo.methods.swav import SwAV
+from solo.methods.twist import TWIST
 from solo.methods.vicreg import VICReg
 from solo.methods.wmse import WMSE
 
@@ -51,6 +52,7 @@ METHODS = {
     "simclr": SimCLR,
     "simsiam": SimSiam,
     "swav": SwAV,
+    "twist": TWIST,
     "vicreg": VICReg,
     "wmse": WMSE,
 }
@@ -69,6 +71,7 @@ __all__ = [
     "SimCLR",
     "SimSiam",
     "SwAV",
+    "TWIST",
     "VICReg",
     "WMSE",
 ]
