@@ -22,6 +22,7 @@ import random
 from pathlib import Path
 from typing import Any, Callable, List, Optional, Sequence, Type, Union
 
+import albumentations as A
 import torch
 import torchvision
 from PIL import Image, ImageFilter, ImageOps
@@ -328,23 +329,46 @@ class ImagenetTransform(BaseTransform):
             crop_size (int, optional): size of the crop. Defaults to 224.
         """
 
-        self.transform = transforms.Compose(
+        # self.transform = transforms.Compose(
+        #     [
+        #         transforms.RandomResizedCrop(
+        #             crop_size,
+        #             scale=(min_scale, max_scale),
+        #             interpolation=transforms.InterpolationMode.BICUBIC,
+        #         ),
+        #         transforms.RandomApply(
+        #             [transforms.ColorJitter(brightness, contrast, saturation, hue)],
+        #             p=color_jitter_prob,
+        #         ),
+        #         transforms.RandomGrayscale(p=gray_scale_prob),
+        #         transforms.RandomApply([GaussianBlur()], p=gaussian_prob),
+        #         transforms.RandomApply([Solarization()], p=solarization_prob),
+        #         transforms.RandomHorizontalFlip(p=horizontal_flip_prob),
+        #         transforms.ToTensor(),
+        #         transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.228, 0.224, 0.225)),
+        #     ]
+        # )
+
+        self.transform = A.Compose(
             [
-                transforms.RandomResizedCrop(
+                A.RandomResizedCrop(
                     crop_size,
                     scale=(min_scale, max_scale),
                     interpolation=transforms.InterpolationMode.BICUBIC,
                 ),
-                transforms.RandomApply(
-                    [transforms.ColorJitter(brightness, contrast, saturation, hue)],
+                A.ColorJitter(
+                    brightness=brightness,
+                    contrast=contrast,
+                    saturation=saturation,
+                    hue=hue,
                     p=color_jitter_prob,
                 ),
-                transforms.RandomGrayscale(p=gray_scale_prob),
-                transforms.RandomApply([GaussianBlur()], p=gaussian_prob),
-                transforms.RandomApply([Solarization()], p=solarization_prob),
-                transforms.RandomHorizontalFlip(p=horizontal_flip_prob),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.228, 0.224, 0.225)),
+                A.ToGray(p=gray_scale_prob),
+                A.GaussianBlur(blur_limit=[23, 23], sigma=[0.1, 2.0], p=gaussian_prob),
+                A.Solarize(p=solarization_prob),
+                A.HorizontalFlip(p=horizontal_flip_prob),
+                A.pytorch.ToTensorV2(),
+                A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.228, 0.224, 0.225)),
             ]
         )
 
