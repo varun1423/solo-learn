@@ -1,3 +1,5 @@
+## Using solo-learn as code basis for my thesis
+
 <div align="center">
 
 [![tests](https://github.com/vturrisi/solo-learn/actions/workflows/tests.yml/badge.svg)](https://github.com/vturrisi/solo-learn/actions/workflows/tests.yml)
