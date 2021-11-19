@@ -1,4 +1,4 @@
-## Using solo-learn only as code basis for my thesis
+## Using solo-learn only as code base for my thesis
 
 <div align="center">
 
