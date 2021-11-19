@@ -523,8 +523,7 @@ def prepare_datasets(
         train_dataset = dataset_with_index(dataset_class)(train_dir, transform)
 
     elif dataset == "tbc":
-        train_dir = train_dir
-        print(train_dir,528)
+        train_dir = data_dir / train_dir
         if no_labels:
             dataset_class = CustomDatasetWithoutLabels
         else:
@@ -536,16 +535,18 @@ def prepare_datasets(
 
 class ThermalBarrierCoating(Dataset):
     def __init__(self, train_dir, transform=None):
-        self.data_csv = pd.read_csv('/p/home/jusers/shitole1/juwels/shared/varun_SSL/solo-learn/datasets/data_public_leaderboard_phase/train.csv')
+        self.data_csv = pd.read_csv(train_dir/Path('train.csv'))
         self.label= self.data_csv['Lifetime']
         self.image_ID = self.data_csv['Image_ID']
         self.transform = transform
-        print(self.data_csv['Lifetime'].shape[0], 55555555555555)
+        self.train_dir = train_dir
+        print(f'train path is {self.train_dir}')
 
 
     def __getitem__(self, index):
         y_label = self.label[index]
-        image = Image.open(os.path.join('/p/home/jusers/shitole1/juwels/shared/varun_SSL/solo-learn/datasets/data_public_leaderboard_phase/train/',self.image_ID[index])+'.tif')
+        
+        image = Image.open(self.train_dir / Path(str(self.image_ID[index]+'.tif')))
         #image = Image.open(os.path.join(train_dir,'train',self.image_ID[index])+'.tif')
         if self.transform is not None:
             image = self.transform(image)

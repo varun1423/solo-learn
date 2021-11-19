@@ -151,3 +151,7 @@ dmypy.json
 .history
 
 # End of https://www.gitignore.io/api/python,visualstudiocode
+solo/utils/.ipynb_checkpoints
+.ipynb_checkpoints
+.ipynb_checkpoints/main_pretrain-checkpoint.py
+solo/utils/.ipynb_checkpoints/pretrain_dataloader-checkpoint.py
