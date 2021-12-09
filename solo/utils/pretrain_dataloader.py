@@ -30,6 +30,8 @@ from torch.utils.data.dataset import Dataset
 from torchvision import transforms
 from torchvision.datasets import STL10, ImageFolder
 import pandas as pd
+import h5py
+import numpy as np
 
 
 def dataset_with_index(DatasetClass: Type[Dataset]) -> Type[Dataset]:
@@ -435,7 +437,9 @@ def prepare_transform(dataset: str, **kwargs) -> Any:
     elif dataset == "custom":
         return CustomTransform(**kwargs)
     elif dataset == "tbc":
-        return CustomTransform(**kwargs)
+        return ImagenetTransform(**kwargs)
+    elif dataset == "bach":
+        return ImagenetTransform(**kwargs)
 
 
 def prepare_n_crop_transform(
@@ -523,16 +527,81 @@ def prepare_datasets(
         train_dataset = dataset_with_index(dataset_class)(train_dir, transform)
 
     elif dataset == "tbc":
-        train_dir = data_dir / train_dir
+        train_dir = train_dir
         if no_labels:
             dataset_class = CustomDatasetWithoutLabels
         else:
-            dataset_class = ThermalBarrierCoating
+            dataset_class = ThermalBarrierCoating_h5
+
+        train_dataset = dataset_with_index(dataset_class)(train_dir, transform)
+
+    elif dataset == "bach":
+        train_dir = train_dir
+        if no_labels:
+            dataset_class = CustomDatasetWithoutLabels
+        else:
+            dataset_class = Bach
 
         train_dataset = dataset_with_index(dataset_class)(train_dir, transform)
 
     return train_dataset
 
+class ThermalBarrierCoating(Dataset):
+    def __init__(self, train_dir, transform=None):
+        self.train_dir = train_dir
+        self.data_csv = pd.read_csv(train_dir / Path('meta_data.csv'))
+        self.label = self.data_csv['sample_name']
+        self.image_ID = self.data_csv['Image_Name']
+        self.transform = transform
+
+    def __getitem__(self, index):
+        y_label = self.label[index]
+        image = Image.open(os.path.join(self.train_dir, 'data_all_csv', self.image_ID[index]))
+        if self.transform is not None:
+            image = self.transform(image)
+        return image, y_label
+
+    def __len__(self):
+        return self.data_csv['sample_name'].shape[0]
+
+
+class ThermalBarrierCoating_h5(Dataset):
+    def __init__(self, train_dir, transform=None):
+        self.h5 = h5py.File(train_dir / Path('final_data.h5'), 'r')
+        self.transform = transform
+
+    def __getitem__(self, index):
+        image = Image.fromarray(self.h5['data_train'][index])
+        y_label =self.h5['train_label'][index]
+        if self.transform is not None:
+            image = self.transform(image)
+        return image, np.int64(y_label)
+
+    def __len__(self):
+        return self.h5['data_train'].shape[0]
+
+
+class Bach(Dataset):
+    def __init__(self, train_dir, transform=None): 
+        self.csv_path = '/p/project/atmlaml/project_SSL_varun/bach/'
+        self.csv = pd.read_csv(self.csv_path / Path('Cancer_data.csv'))
+        self.label = self.csv['Id']
+        self.image_ID = self.csv['Image_Name']
+        self.transform = transform
+        self.train_dir = train_dir
+
+    def __getitem__(self, index):
+        image = Image.open(os.path.join(self.train_dir, self.image_ID[index]))
+        y_label = self.label[index]
+        if self.transform is not None:
+            image = self.transform(image)
+        return image, y_label
+
+    def __len__(self):
+        return self.image_ID.shape[0]
+
+
+"""
 class ThermalBarrierCoating(Dataset):
     def __init__(self, train_dir, transform=None):
         self.data_csv = pd.read_csv(train_dir/Path('train.csv'))
@@ -554,6 +623,7 @@ class ThermalBarrierCoating(Dataset):
 
     def __len__(self):
         return self.data_csv['Lifetime'].shape[0]
+"""
 
 
 def prepare_dataloader(

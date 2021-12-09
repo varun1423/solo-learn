@@ -100,13 +100,14 @@ def main():
         )
 
 
-    print(len(train_dataset))
-    print(train_dataset[0])
+    #print(len(train_dataset))
 
     # normal dataloader for when it is available
     if args.dataset == "custom" and (args.no_labels or args.val_dir is None):
         val_loader = None
     elif args.dataset == "tbc" and (args.no_labels or args.val_dir is None):
+        val_loader = None
+    elif args.dataset == "bach" and (args.no_labels or args.val_dir is None):
         val_loader = None
     elif args.dataset in ["imagenet100", "imagenet"] and args.val_dir is None:
         val_loader = None

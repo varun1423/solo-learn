@@ -28,6 +28,8 @@ N_CLASSES_PER_DATASET = {
     "stl10": 10,
     "imagenet": 1000,
     "imagenet100": 100,
+    "tbc": 10,
+    "bach": 10,
 }
 
 
@@ -195,6 +197,7 @@ def additional_setup_pretrain(args: Namespace):
     # create backbone-specific arguments
     args.backbone_args = {"cifar": True if args.dataset in ["cifar10", "cifar100"] else False}
     args.tbc = True if args.dataset == "tbc" else False
+    args.bach = True if args.dataset == "bach" else False
     if "resnet" in args.encoder:
         args.backbone_args["zero_init_residual"] = args.zero_init_residual
     else:
@@ -252,6 +255,8 @@ def additional_setup_linear(args: Namespace):
 
     # create backbone-specific arguments
     args.backbone_args = {"cifar": True if args.dataset in ["cifar10", "cifar100"] else False}
+    args.backbone_args = {"tbc": True if args.dataset in ["tbc"] else False}
+    args.backbone_args = {"bach": True if args.dataset in ["bach"] else False}
 
     if "resnet" not in args.encoder:
         # dataset related for all transformers

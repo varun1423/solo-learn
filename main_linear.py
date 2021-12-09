@@ -70,7 +70,9 @@ def main():
 
     # initialize encoder
     kwargs = args.backbone_args
-    cifar = kwargs.pop("cifar", False)
+    bach = kwargs.pop("bach", False)
+    tbc = kwargs.pop("tbc", False)
+    #cifar = kwargs.pop("cifar", False)
     # swin specific
     if "swin" in args.encoder and cifar:
         kwargs["window_size"] = 4
@@ -79,9 +81,13 @@ def main():
     if "resnet" in args.encoder:
         # remove fc layer
         backbone.fc = nn.Identity()
-        if cifar:
+        if tbc:  # cifar
             backbone.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=2, bias=False)
             backbone.maxpool = nn.Identity()
+        if bach:  # cifar
+            backbone.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=2, bias=False)
+            backbone.maxpool = nn.Identity()
+
 
     assert (
         args.pretrained_feature_extractor.endswith(".ckpt")

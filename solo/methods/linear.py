@@ -54,7 +54,6 @@ class LinearModel(pl.LightningModule):
         **kwargs,
     ):
         """Implements linear evaluation.
-
         Args:
             backbone (nn.Module): backbone architecture for feature extraction.
             num_classes (int): number of classes in the dataset.
@@ -102,11 +101,9 @@ class LinearModel(pl.LightningModule):
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
         """Adds basic linear arguments.
-
         Args:
             parent_parser (ArgumentParser): argument parser that is used to create a
                 argument group.
-
         Returns:
             ArgumentParser: same as the argument, used to avoid errors.
         """
@@ -156,10 +153,8 @@ class LinearModel(pl.LightningModule):
 
     def forward(self, X: torch.tensor) -> Dict[str, Any]:
         """Performs forward pass of the frozen backbone and the linear layer for evaluation.
-
         Args:
             X (torch.tensor): a batch of images in the tensor format.
-
         Returns:
             Dict[str, Any]: a dict containing features and logits.
         """
@@ -171,12 +166,10 @@ class LinearModel(pl.LightningModule):
 
     def configure_optimizers(self) -> Tuple[List, List]:
         """Configures the optimizer for the linear layer.
-
         Raises:
             ValueError: if the optimizer is not in (sgd, adam).
             ValueError: if the scheduler is not in not in (warmup_cosine, cosine, reduce, step,
                 exponential).
-
         Returns:
             Tuple[List, List]: two lists containing the optimizer and the scheduler.
         """
@@ -223,11 +216,9 @@ class LinearModel(pl.LightningModule):
         self, batch: Tuple, batch_idx: int
     ) -> Tuple[int, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Performs operations that are shared between the training nd validation steps.
-
         Args:
             batch (Tuple): a batch of images in the tensor format.
             batch_idx (int): the index of the batch.
-
         Returns:
             Tuple[int, torch.Tensor, torch.Tensor, torch.Tensor]:
                 batch size, loss, accuracy @1 and accuracy @5.
@@ -245,11 +236,9 @@ class LinearModel(pl.LightningModule):
 
     def training_step(self, batch: torch.Tensor, batch_idx: int) -> torch.Tensor:
         """Performs the training step for the linear eval.
-
         Args:
             batch (torch.Tensor): a batch of images in the tensor format.
             batch_idx (int): the index of the batch.
-
         Returns:
             torch.Tensor: cross-entropy loss between the predictions and the ground truth.
         """
@@ -265,11 +254,9 @@ class LinearModel(pl.LightningModule):
 
     def validation_step(self, batch: torch.Tensor, batch_idx: int) -> Dict[str, Any]:
         """Performs the validation step for the linear eval.
-
         Args:
             batch (torch.Tensor): a batch of images in the tensor format.
             batch_idx (int): the index of the batch.
-
         Returns:
             Dict[str, Any]:
                 dict with the batch_size (used for averaging),
@@ -290,7 +277,6 @@ class LinearModel(pl.LightningModule):
         """Averages the losses and accuracies of all the validation batches.
         This is needed because the last batch can be smaller than the others,
         slightly skewing the metrics.
-
         Args:
             outs (List[Dict[str, Any]]): list of outputs of the validation step.
         """

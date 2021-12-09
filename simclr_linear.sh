@@ -1,0 +1,21 @@
+python3 main_linear.py \
+    --dataset tbc \
+    --encoder resnet18 \
+    --data_dir /p/home/jusers/shitole1/juwels/shared/varun_SSL/solo-learn/datasets/data_public_leaderboard_phase/ \
+    --train_dir /p/home/jusers/shitole1/juwels/shared/varun_SSL/solo-learn/datasets/data_public_leaderboard_phase/train \
+    --max_epochs 3 \
+    --gpus 0 \
+    --precision 16 \
+    --optimizer sgd \
+    --scheduler step \
+    --lr 1.0 \
+    --lr_decay_steps 60 80 \
+    --weight_decay 0 \
+    --batch_size 64 \
+    --num_workers 10 \
+    --name simclr-imagenet100-linear-eval \
+    --pretrained_feature_extractor /p/home/jusers/shitole1/juwels/solo-learn_SSL/ckpt/simclr/3iptrvxc/simclr-cifar10-3iptrvxc-ep=2499.ckpt \
+    --project ssl_first_run \
+    --entity varun-s \
+    --wandb \
+    --accelerator ddp

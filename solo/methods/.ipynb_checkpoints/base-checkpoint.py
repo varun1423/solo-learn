@@ -62,6 +62,7 @@ class BaseMethod(pl.LightningModule):
         encoder: str,
         num_classes: int,
         tbc: bool,
+        bach: bool,
         backbone_args: dict,
         max_epochs: int,
         batch_size: int,
@@ -146,6 +147,7 @@ class BaseMethod(pl.LightningModule):
         # resnet backbone related
         self.backbone_args = backbone_args
         self.tbc = tbc
+        self.bach = bach
 
         # training related
         self.num_classes = num_classes
@@ -227,7 +229,10 @@ class BaseMethod(pl.LightningModule):
             # remove fc layer
             self.encoder.fc = nn.Identity()
             if tbc:
-                self.encoder.conv1 = nn.Conv2d(1, 64, kernel_size=3, stride=1, padding=2, bias=False)
+                self.encoder.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=2, bias=False)
+                self.encoder.maxpool = nn.Identity()
+            if bach:
+                self.encoder.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=2, bias=False)
                 self.encoder.maxpool = nn.Identity()
 
             if cifar:
