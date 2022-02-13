@@ -107,8 +107,6 @@ def main():
         val_loader = None
     elif args.dataset == "tbc" and (args.no_labels or args.val_dir is None):
         val_loader = None
-    elif args.dataset == "bach" and (args.no_labels or args.val_dir is None):
-        val_loader = None
     elif args.dataset in ["imagenet100", "imagenet"] and args.val_dir is None:
         val_loader = None
     else:

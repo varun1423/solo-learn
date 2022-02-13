@@ -70,7 +70,6 @@ def main():
 
     # initialize encoder
     kwargs = args.backbone_args
-    bach = kwargs.pop("bach", False)
     tbc = kwargs.pop("tbc", False)
     #cifar = kwargs.pop("cifar", False)
     # swin specific
@@ -84,10 +83,6 @@ def main():
         if tbc:  # cifar
             backbone.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=2, bias=False)
             backbone.maxpool = nn.Identity()
-        if bach:  # cifar
-            backbone.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=2, bias=False)
-            backbone.maxpool = nn.Identity()
-
 
     assert (
         args.pretrained_feature_extractor.endswith(".ckpt")
@@ -153,11 +148,11 @@ def main():
         checkpoint_callback=False,
         terminate_on_nan=True,
     )
+    print(model)
     if args.dali:
         trainer.fit(model, val_dataloaders=val_loader)
     else:
         trainer.fit(model, train_loader, val_loader)
-
 
 if __name__ == "__main__":
     main()

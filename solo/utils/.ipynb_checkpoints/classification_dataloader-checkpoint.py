@@ -126,37 +126,21 @@ def prepare_transforms(dataset: str) -> Tuple[nn.Module, nn.Module]:
     tbc_pipeline = {
         "T_train": transforms.Compose(
             [transforms.Grayscale(num_output_channels=3),
-                transforms.RandomResizedCrop(size=256, scale=(0.08, 1.0)),
+             transforms.RandomResizedCrop(size=224, scale=(0.08, 1.0)),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
-                transforms.Normalize(mean=(0.485), std=(0.228)),
+                transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.228, 0.224, 0.225)),
             ]
         ),
         "T_val": transforms.Compose(
             [transforms.Grayscale(num_output_channels=3),
-                transforms.Resize(256),
+             transforms.Resize(224),
                 transforms.ToTensor(),
                 transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.228, 0.224, 0.225)),
             ]
         ),
     }
-
-    bach_pipeline = {
-        "T_train": transforms.Compose(
-            [transforms.RandomResizedCrop(size=400, scale=(0.08, 1.0)),
-                transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.228, 0.224, 0.225)),
-            ]
-        ),
-        "T_val": transforms.Compose(
-            [transforms.Resize(400),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.228, 0.224, 0.225)),
-            ]
-        ),
-    }
-
+#transforms.Grayscale(num_output_channels=3),
     custom_pipeline = build_custom_pipeline()
 
     pipelines = {
@@ -165,8 +149,7 @@ def prepare_transforms(dataset: str) -> Tuple[nn.Module, nn.Module]:
         "stl10": stl_pipeline,
         "imagenet100": imagenet_pipeline,
         "imagenet": imagenet_pipeline,
-        "tbc": imagenet_pipeline,
-        "bach": bach_pipeline,
+        "tbc": tbc_pipeline,
         "custom": custom_pipeline,
     }
 
@@ -218,7 +201,7 @@ def prepare_datasets(
     else:
         val_dir = Path(val_dir)
 
-    assert dataset in ["cifar10", "cifar100", "stl10", "imagenet", "imagenet100", "tbc", "bach", "custom"]
+    assert dataset in ["cifar10", "cifar100", "stl10", "imagenet", "imagenet100", "tbc", "custom"]
 
     if dataset in ["cifar10", "cifar100"]:
         DatasetClass = vars(torchvision.datasets)[dataset.upper()]
@@ -261,130 +244,47 @@ def prepare_datasets(
         train_dir = train_dir
         val_dir = val_dir
 
-        train_dataset = ThermalBarrierCoating_h5(train_dir, T_train)
-        val_dataset = ThermalBarrierCoating_h5_val(val_dir, T_val)
-        
-    elif dataset == "bach":
-        train_dir = train_dir
-        val_dir = val_dir
-
-        train_dataset = Bach_train(train_dir, T_train)
-        val_dataset = Bach_val(val_dir, T_val)
+        train_dataset = ThermalBarrierCoating(train_dir, T_train)
+        val_dataset = ThermalBarrierCoating_val(val_dir, T_val)
 
     return train_dataset, val_dataset
-
-
-class ThermalBarrierCoating_h5(Dataset):
-    def __init__(self, train_dir, transform=None):
-        self.h5 = h5py.File(train_dir / Path('final_split.h5'), 'r')
-        self.transform = transform
-
-    def __getitem__(self, index):
-        image = Image.fromarray(self.h5['data_train'][index])
-        y_label =self.h5['train_label'][index]
-        if self.transform is not None:
-            image = self.transform(image)
-        return image, np.int64(y_label)
-
-    def __len__(self):
-        return self.h5['data_train'].shape[0]
-
-
-class ThermalBarrierCoating_h5_val(Dataset):
-    def __init__(self, val_dir, transform=None):
-        self.h5 = h5py.File(val_dir / Path('final_split.h5'), 'r')
-        self.transform = transform
-
-    def __getitem__(self, index):
-        image = Image.fromarray(self.h5['data_val'][index])
-        y_label =self.h5['val_label'][index]
-        if self.transform is not None:
-            image = self.transform(image)
-        return image, np.int64(y_label)
-
-    def __len__(self):
-        return self.h5['data_val'].shape[0]
-
-class Bach_train(Dataset):
-    def __init__(self, train_dir, transform=None): 
-        self.csv_path = '/p/project/atmlaml/project_SSL_varun/bach/'
-        self.csv = pd.read_csv(self.csv_path / Path('train_csv.csv'))
-        self.label = self.csv['Id']
-        self.image_ID = self.csv['Image_Name']
-        self.transform = transform
-        self.train_dir = train_dir
-
-    def __getitem__(self, index):
-        image = Image.open(os.path.join(self.train_dir, self.image_ID[index]))
-        y_label = self.label[index]
-        if self.transform is not None:
-            image = self.transform(image)
-        return image, y_label
-
-    def __len__(self):
-        return self.image_ID.shape[0]
-
-
-class Bach_val(Dataset):
-    def __init__(self, val_dir, transform=None):
-        self.csv_path = '/p/project/atmlaml/project_SSL_varun/bach/'
-        self.csv = pd.read_csv(self.csv_path / Path('csv_val.csv'))
-        self.label = self.csv['Id']
-        self.image_ID = self.csv['Image_Name']
-        self.transform = transform
-        self.val_dir = val_dir
-
-    def __getitem__(self, index):
-        image = Image.open(os.path.join(self.val_dir, self.image_ID[index]))
-        y_label = self.label[index]
-        if self.transform is not None:
-            image = self.transform(image)
-        return image, y_label
-
-    def __len__(self):
-        return self.image_ID.shape[0]
-    
-
-"""
-class ThermalBarrierCoating_val(Dataset):
-    def __init__(self, train_dir, transform=None):
-        self.train_dir = train_dir
-        self.data_csv = pd.read_csv(train_dir / Path('meta_data.csv')) 
-        self.data_csv = self.data_csv.sample(n=1000).reset_index(drop=True)
-        self.label = self.data_csv['sample_name']
-        self.image_ID = self.data_csv['Image_Name']
-        self.transform = transform
-
-    def __getitem__(self, index):
-        y_label = self.label[index]
-        image = Image.open(os.path.join(self.train_dir, 'data_all_csv', self.image_ID[index]))
-        if self.transform is not None:
-            image = self.transform(image)
-        return image, y_label
-
-    def __len__(self):
-        return self.data_csv['sample_name'].shape[0]
-
-    
 
 class ThermalBarrierCoating(Dataset):
     def __init__(self, train_dir, transform=None):
         self.train_dir = train_dir
-        self.data_csv = pd.read_csv(train_dir / Path('meta_data.csv'))
-        self.label = self.data_csv['sample_name']
+        self.data_csv = pd.read_csv(train_dir / Path('pretraining_trainset.csv'))
+        self.label = self.data_csv['encoding']
         self.image_ID = self.data_csv['Image_Name']
         self.transform = transform
 
     def __getitem__(self, index):
         y_label = self.label[index]
-        image = Image.open(os.path.join(self.train_dir, 'data_all_csv', self.image_ID[index]))
+        image = Image.open(os.path.join(self.train_dir, 'tbc_with_lifetime/data_with_Lifetime', self.image_ID[index]))
         if self.transform is not None:
             image = self.transform(image)
         return image, y_label
 
     def __len__(self):
-        return self.data_csv['sample_name'].shape[0]
-"""
+        return self.data_csv['encoding'].shape[0]
+
+class ThermalBarrierCoating_val(Dataset):
+    def __init__(self, train_dir, transform=None):
+        self.train_dir = train_dir
+        self.data_csv = pd.read_csv(train_dir / Path('fine_tune_validation.csv'))
+        self.label = self.data_csv['encoding']
+        self.image_ID = self.data_csv['Image_Name']
+        self.transform = transform
+
+    def __getitem__(self, index):
+        y_label = self.label[index]
+        image = Image.open(os.path.join(self.train_dir, 'tbc_with_lifetime/data_with_Lifetime', self.image_ID[index]))
+        if self.transform is not None:
+            image = self.transform(image)
+        return image, y_label
+
+    def __len__(self):
+        return self.data_csv['encoding'].shape[0]
+
 
 def prepare_dataloaders(
     train_dataset: Dataset, val_dataset: Dataset, batch_size: int = 64, num_workers: int = 4

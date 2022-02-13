@@ -78,7 +78,7 @@ class LinearModel(pl.LightningModule):
             features_dim = self.backbone.inplanes
         else:
             features_dim = self.backbone.num_features
-        self.classifier = nn.Linear(features_dim, num_classes)  # type: ignore
+        self.classifier = nn.Sequential(nn.Linear(features_dim, num_classes))
 
         # training related
         self.max_epochs = max_epochs
@@ -96,7 +96,7 @@ class LinearModel(pl.LightningModule):
         self.extra_args = kwargs
 
         for param in self.backbone.parameters():
-            param.requires_grad = False
+            param.requires_grad = True
 
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
@@ -159,8 +159,8 @@ class LinearModel(pl.LightningModule):
             Dict[str, Any]: a dict containing features and logits.
         """
 
-        with torch.no_grad():
-            feats = self.backbone(X)
+        #with torch.no_grad():
+        feats = self.backbone(X)
         logits = self.classifier(feats)
         return {"logits": logits, "feats": feats}
 
@@ -180,9 +180,9 @@ class LinearModel(pl.LightningModule):
             optimizer = torch.optim.Adam
         else:
             raise ValueError(f"{self.optimizer} not in (sgd, adam)")
-
+        params = list(self.backbone.parameters()) + list(self.classifier.parameters())
         optimizer = optimizer(
-            self.classifier.parameters(),
+            params,
             lr=self.lr,
             weight_decay=self.weight_decay,
             **self.extra_optimizer_args,
